@@ -1,0 +1,9 @@
+*.log
+
+node_modules/
+
+server/constants.json
+
+server/serviceAccountKey.json
+
+database.db
