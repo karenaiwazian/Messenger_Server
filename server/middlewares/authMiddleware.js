@@ -1,14 +1,10 @@
 import jwt from 'jsonwebtoken'
-import { createRequire } from 'module'
-
-const require = createRequire(import.meta.url)
-const constants = require('./constants.json')
-
-const JWT_SECRET = constants.secret_key
+import { JWT_SECRET } from '../constants.js'
 
 export function authenticate(req, res, next) {
     const authHeader = req.headers.authorization
     const token = authHeader?.split(' ')[1]
+
     if (!token) return res.status(401).json({ error: 'token not found' })
 
     try {

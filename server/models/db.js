@@ -35,7 +35,7 @@ async function createUsersTable() {
         `)
 }
 
-async function createGroupsTable() {
+async function createMessagesTable() {
     await db.run(`
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +49,7 @@ async function createGroupsTable() {
         `)
 }
 
-async function createMessagesTable() {
+async function createSessionTokensTable() {
     await db.run(`
             CREATE TABLE IF NOT EXISTS tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +63,7 @@ async function createMessagesTable() {
         `)
 }
 
-async function createSessionTokensTable() {
+async function createGroupsTable() {
     await db.run(`
             CREATE TABLE IF NOT EXISTS groups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

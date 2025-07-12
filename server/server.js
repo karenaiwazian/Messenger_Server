@@ -4,12 +4,12 @@ import { WebSocketServer } from 'ws'
 import admin from 'firebase-admin';
 import { createRequire } from 'module'
 import { LRUCache } from 'lru-cache'
-import mainRouter from './route.js'
-import { getInstance } from './db.js'
-import { SERVER_PORT, WEBSOCKET_PORT, JWT_SECRET } from './constants.js'
+import mainRouter from './routes/route.js'
+import { getInstance } from './models/db.js'
+import { SERVER_PORT, WEBSOCKET_PORT, JWT_SECRET, APP_NAME } from './constants.js'
 
 const requireJSON = createRequire(import.meta.url)
-const serviceAccount = requireJSON('./serviceAccountKey.json')
+const serviceAccount = requireJSON('./config/serviceAccountKey.json')
 
 const usernameCache = new LRUCache({
     max: 100_000,
@@ -68,50 +68,70 @@ wss.on('connection', async (ws, request) => {
         ws.close(1008, 'Ошибка проверки токена')
     }
 
-    ws.on('message', async (data) => {
-        try {
-            const message = JSON.parse(data)
+    ws.on('message', data => handleMessage(ws, data))
 
-            if (message.action == "DISMISS_SESSION") {
-                const sessionId = message.data.sessionId
+    ws.on('close', () => handleConnectionClose(ws))
+})
 
-                const token = await db.get('SELECT token FROM tokens WHERE id = ? AND userId = ?', [sessionId, ws.userId])
+async function handleMessage(ws, data) {
+    try {
+        const message = JSON.parse(data)
 
-                disconnectUserByIdAndToken(ws.userId, token.token)
+        if (message.action == "DISMISS_SESSION") {
+            const sessionId = message.data.sessionId
 
-                return
+            const token = await db.get('SELECT token FROM tokens WHERE id = ? AND userId = ?', [sessionId, ws.userId])
+
+            disconnectUserByIdAndToken(ws.userId, token.token)
+
+            return
+        }
+
+        const targetId = message.receiverId
+
+        const currentUserSessions = userConnections.get(ws.userId)
+
+        const MAX_MESSAGE_LENGTH = 4096
+
+        const parts = []
+        const text = message.text
+        for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
+            parts.push(text.slice(i, i + MAX_MESSAGE_LENGTH))
+        }
+
+        for (let i = 0; i < parts.length; i++) {
+            const partText = parts[i]
+
+            const date = Date.now()
+
+            await db.run(
+                `INSERT INTO messages (senderId, receiverId, text, timestamp) VALUES (?, ?, ?, ?)`,
+                [message.senderId, message.receiverId, partText, date]
+            )
+
+            if (message.receiverId != message.senderId) {
+                const senderName = await getUsername(message.senderId)
+                await sendPushToUser(message.receiverId, partText, senderName, message.senderId)
             }
+        }
 
-            const targetId = message.receiverId
-
-            const currentUserSessions = userConnections.get(ws.userId)
-
-            const MAX_MESSAGE_LENGTH = 4096
-
-            const parts = []
-            const text = message.text
-            for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
-                parts.push(text.slice(i, i + MAX_MESSAGE_LENGTH))
-            }
-
-            for (let i = 0; i < parts.length; i++) {
-                const partText = parts[i]
-
-                const date = Date.now()
-
-                await db.run(
-                    `INSERT INTO messages (senderId, receiverId, text, timestamp) VALUES (?, ?, ?, ?)`,
-                    [message.senderId, message.receiverId, partText, date]
-                )
-
-                if (message.receiverId != message.senderId) {
-                    const senderName = await getUsername(message.senderId)
-                    await sendPushToUser(message.receiverId, partText, senderName, message.senderId)
+        if (currentUserSessions) {
+            for (const client of currentUserSessions) {
+                if (client[1].readyState === WebSocket.OPEN && client[1].token != ws.token) {
+                    parts.forEach(part => {
+                        let g = message
+                        g.text = part
+                        client[1].send(JSON.stringify(g))
+                    })
                 }
             }
+        }
 
-            if (currentUserSessions) {
-                for (const client of currentUserSessions) {
+        if (targetId != ws.userId) {
+            const connections = userConnections.get(targetId)
+
+            if (connections) {
+                for (const client of connections) {
                     if (client[1].readyState === WebSocket.OPEN && client[1].token != ws.token) {
                         parts.forEach(part => {
                             let g = message
@@ -121,43 +141,29 @@ wss.on('connection', async (ws, request) => {
                     }
                 }
             }
-
-            if (targetId != ws.userId) {
-                const connections = userConnections.get(targetId)
-
-                if (connections) {
-                    for (const client of connections) {
-                        if (client[1].readyState === WebSocket.OPEN && client[1].token != ws.token) {
-                            parts.forEach(part => {
-                                let g = message
-                                g.text = part
-                                client[1].send(JSON.stringify(g))
-                            })
-                        }
-                    }
-                }
-            }
-
-            console.log(message)
         }
-        catch (e) { console.log(`error + ${e}`) }
-    })
 
-    ws.on('close', () => {
-        const userId = ws.userId
-        console.log(`User ${userId} disconnected`)
+        console.log(message)
+    }
+    catch (e) {
+        console.log('handleMessage error', e)
+    }
+}
 
-        if (ws.userId && ws.token && userConnections.has(ws.userId)) {
-            const tokenMap = userConnections.get(ws.userId)
+function handleConnectionClose(ws) {
+    const userId = ws.userId
+    console.log(`User ${userId} disconnected`)
 
-            tokenMap.delete(ws.token)
+    if (ws.userId && ws.token && userConnections.has(ws.userId)) {
+        const tokenMap = userConnections.get(ws.userId)
 
-            if (tokenMap.size === 0) {
-                userConnections.delete(ws.userId)
-            }
+        tokenMap.delete(ws.token)
+
+        if (tokenMap.size === 0) {
+            userConnections.delete(ws.userId)
         }
-    })
-})
+    }
+}
 
 async function getUsername(userId) {
     const name = usernameCache.get(userId)
@@ -167,13 +173,15 @@ async function getUsername(userId) {
     }
 
     const row = await db.get("SELECT firstName, lastName FROM users WHERE id = ?", userId)
+
     if (row) {
         const name = `${row.firstName} ${row.lastName}`
         usernameCache.set(userId, name)
+
         return name
     }
 
-    return "Messenger"
+    return APP_NAME
 }
 
 async function sendPushToUser(userId, messageText, senderName, chatId) {
