@@ -1,7 +1,10 @@
 *.log
 
+dist/
+
 node_modules/
 
-server/config/
+src/config/
 
-database.db
+*.db
+*.sqlite
