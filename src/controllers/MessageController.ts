@@ -4,8 +4,8 @@ import { MessageService } from '../services/MessageService.js'
 export class MessageController {
     private messageService: MessageService
 
-    constructor(messageService: MessageService) {
-        this.messageService = messageService
+    constructor() {
+        this.messageService = new MessageService()
     }
 
     getMessages = async (req: Request, res: Response) => {
@@ -26,7 +26,7 @@ export class MessageController {
         const user2 = parseInt(req.query.user2?.toString() || "")
 
         try {
-            await this.messageService.deleteAllMessages(currentUserId, user2)
+            await this.messageService.deleteAllMessagesInChat(currentUserId, user2)
             res.status(200).json({ success: true })
         } catch (error) {
             console.error('Ошибка при удалении сообщений:', error)

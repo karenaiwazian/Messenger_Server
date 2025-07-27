@@ -8,3 +8,5 @@ src/config/
 
 *.db
 *.sqlite
+
+/src/generated/prisma

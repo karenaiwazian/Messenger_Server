@@ -6,8 +6,8 @@ import { SessionService } from '../services/SessionService.js'
 export class Authenticate {
     private sessionService: SessionService
 
-    constructor(sessionService: SessionService) {
-        this.sessionService = sessionService
+    constructor() {
+        this.sessionService = new SessionService()
     }
 
     authenticate = async (req: Request, res: Response, next: NextFunction) => {

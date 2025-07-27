@@ -1,24 +1,23 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { JWT_SECRET } from '../constants.js'
-import { UserInfo } from '../interfaces/UserInfo.js'
-
+import { UserFullInfo } from '../interfaces/User.js'
 import { Request, Response } from 'express'
 import { UserService } from "../services/UserService.js"
+import { SessionInfo } from '../interfaces/Session.js'
 import { SessionService } from '../services/SessionService.js'
-import { SessionInfo } from '../interfaces/SessionInfo.js'
+import { MessageService } from '../services/MessageService.js'
 
 export class UserController {
+
     private userService: UserService
-    private _sessionService: SessionService
+    private sessionService: SessionService
+    private chatService: MessageService
 
-    public get sessionService(): SessionService {
-        return this._sessionService
-    }
-
-    constructor(userService: UserService, sessionService: SessionService) {
-        this.userService = userService
-        this._sessionService = sessionService
+    constructor() {
+        this.userService = new UserService()
+        this.sessionService = new SessionService()
+        this.chatService = new MessageService()
     }
 
     getUserById = async (req: Request, res: Response) => {
@@ -50,7 +49,7 @@ export class UserController {
         const token = req.user?.token || ""
 
         try {
-            await this._sessionService.deleteSession(userId, token)
+            await this.sessionService.deleteSession(userId, token)
             res.json({ success: true })
         } catch (error) {
             console.error('Ошибка при выходе из системы:', error)
@@ -106,7 +105,7 @@ export class UserController {
         const userId = parseInt(req.user?.id || "")
         const data = req.body
 
-        const user: UserInfo = {
+        const user: UserFullInfo = {
             id: userId,
             firstName: data.firstName.toString().trim(),
             lastName: data.lastName.toString().trim(),
@@ -119,19 +118,6 @@ export class UserController {
             res.json({ success: true })
         } catch (error) {
             console.error('Ошибка при обновлении профиля:', error)
-            res.status(500).json({ error: 'Ошибка сервера' })
-        }
-    }
-
-
-    getAllChats = async (req: Request, res: Response) => {
-        const userId = parseInt(req.user?.id || "")
-
-        try {
-            const chats = await this.userService.getAllChats(userId)
-            res.json(chats)
-        } catch (error) {
-            console.error('Ошибка при получении контактов:', error)
             res.status(500).json({ error: 'Ошибка сервера' })
         }
     }
@@ -161,7 +147,7 @@ export class UserController {
                 createdAt: new Date(),
             }
 
-            const addedSession = await this._sessionService.addSession(sessionInfo)
+            const addedSession = await this.sessionService.addSession(sessionInfo)
 
             res.json({ token })
         } else {
@@ -172,7 +158,7 @@ export class UserController {
     register = async (req: Request, res: Response) => {
         const { login, password, deviceName } = req.body
 
-        if (!login || !password || !deviceName) {
+        if (!login || !password) {
             res.status(400).json({ error: 'Заполните пропуски' })
             return
         }
@@ -180,22 +166,24 @@ export class UserController {
         const hash = await bcrypt.hash(password, 10)
 
         try {
-            const userInfo: UserInfo = {
+            const registerInfo = {
                 login: login.trim(),
                 password: hash,
             }
 
-            const result = await this.userService.registerUser(userInfo)
+            const registerResult = await this.userService.registerUser(registerInfo)
+
+            const userToken = jwt.sign({ id: registerResult.id }, JWT_SECRET)
 
             const sessionInfo: SessionInfo = {
                 id: 0,
-                userId: result.id,
-                deviceName: deviceName.trim(),
-                token: jwt.sign({ id: result.id }, JWT_SECRET),
+                userId: registerResult.id,
+                deviceName: deviceName?.trim() || "",
+                token: userToken,
                 createdAt: new Date(),
             }
 
-            const addedSession = await this._sessionService.addSession(sessionInfo)
+            const addedSession = await this.sessionService.addSession(sessionInfo)
 
             res.json({ token: sessionInfo.token })
             console.log('Пользователь зарегистрирован')

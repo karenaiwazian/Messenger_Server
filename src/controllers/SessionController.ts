@@ -1,11 +1,11 @@
 import { Request, Response } from 'express'
-import { SessionService } from '../services/SessionService'
+import { SessionService } from '../services/SessionService.js'
 
 export class SessionController {
     private sessionService: SessionService
 
-    constructor(sessionService: SessionService) {
-        this.sessionService = sessionService
+    constructor() {
+        this.sessionService = new SessionService()
     }
 
     updateFcmToken = async (req: Request, res: Response) => {
