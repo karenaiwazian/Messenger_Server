@@ -47,8 +47,8 @@ export class SessionService {
         })
     }
 
-    addSession = async (session: SessionInfo): Promise<void> => {
-        await prisma.session.create({
+    addSession = async (session: SessionInfo): Promise<SessionInfo> => {
+        const createdSession = await prisma.session.create({
             data: {
                 userId: session.userId,
                 token: session.token,
@@ -56,6 +56,8 @@ export class SessionService {
                 deviceName: session.deviceName
             }
         })
+
+        return createdSession as SessionInfo
     }
 
     hasSession = async (userId: number, token: string): Promise<boolean> => {

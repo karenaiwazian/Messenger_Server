@@ -1,28 +1,28 @@
 import jwt from 'jsonwebtoken'
-import { JWT_SECRET } from '../constants.js'
 import { NextFunction, Request, Response } from 'express'
 import { SessionService } from '../services/SessionService.js'
+import { ApiReponse } from '../interfaces/ApiResponse.js'
+import { JWT_SECRET_KEY } from '../constants.js'
 
 export class Authenticate {
-    private sessionService: SessionService
 
-    constructor() {
-        this.sessionService = new SessionService()
-    }
+    private sessionService = new SessionService()
 
     authenticate = async (req: Request, res: Response, next: NextFunction) => {
         const authHeader = req.headers.authorization
         const token = authHeader?.split(' ')[1]
 
         if (!token) {
-            return res.status(401).json({ error: 'token not found' })
+            console.error("Token is undefined")
+            return res.status(401).json(ApiReponse.Error("Token is undefined"))
         }
 
         try {
             const checkVerify = await this.verify(token)
 
             if (!checkVerify.isVerify) {
-                return res.status(401).json({ error: 'session not found' })
+                console.error("Session not found")
+                return res.status(401).json(ApiReponse.Error("Session not found"))
             }
 
             req.user = {
@@ -32,13 +32,13 @@ export class Authenticate {
 
             next()
         } catch {
-            console.log('token is invalid')
-            res.status(403).json({ error: 'token is invalid' })
+            console.error('Token is invalid')
+            res.status(401).json(ApiReponse.Error("Token is invalid"))
         }
     }
 
     verify = async (token: string) => {
-        const payload: any = jwt.verify(token, JWT_SECRET)
+        const payload: any = jwt.verify(token, JWT_SECRET_KEY)
         const userId = payload.id
         const isVerify = await this.sessionService.hasSession(userId, token)
 

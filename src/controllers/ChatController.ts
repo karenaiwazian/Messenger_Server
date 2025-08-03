@@ -1,79 +1,81 @@
-import { Request, Response } from 'express'
+import { Response } from 'express'
 import { ChatService } from "../services/ChatService.js"
+import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
+import { ApiReponse } from '../interfaces/ApiResponse.js'
 
 export class ChatController {
-    private chatService: ChatService
 
-    constructor() {
-        this.chatService = new ChatService()
+    private chatService = new ChatService()
+
+    getAllChats = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
+        try {
+            const chats = await this.chatService.getAllChats(userId)
+            res.json(chats)
+        } catch {
+            res.json(ApiReponse.Error("Ошибка при получении всех чатов"))
+        }
     }
 
-    getUnarchivedChats = async (req: Request, res: Response) => {
-        const userId = req.user?.id
-
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' })
-        }
+    getUnarchivedChats = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
 
         try {
-            const chats = await this.chatService.getUnarchivedChats(parseInt(userId))
+            const chats = await this.chatService.getUnarchivedChats(userId)
             res.json(chats)
         } catch (error) {
-            console.error('Error while loading unarchive chats:', error)
-            res.status(500).json({ error: 'Error' })
+            console.error('Ошибка при получении не архивных чатов', error)
+            res.json(ApiReponse.Error("Ошибка при получении не архивных чатов"))
         }
     }
 
-    getArchivedChats = async (req: Request, res: Response) => {
-        const userId = req.user?.id
-
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' })
-        }
+    getArchivedChats = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
 
         try {
-            const chats = await this.chatService.getArchivedChats(parseInt(userId))
+            const chats = await this.chatService.getArchivedChats(userId)
             res.json(chats)
         } catch (error) {
-            console.error('Error while loading archive chats:', error)
-            res.status(500).json({ error: 'Error' })
+            console.error('Ошибка при получении архивных чатов', error)
+            res.json(ApiReponse.Error("Ошибка при получении архивных чатов"))
         }
     }
 
-    addChatToArchive = async (req: Request, res: Response) => {
-        const userId = parseInt(req.user?.id || "")
-        const chatId = parseInt(req.body.id)
+    addChatToArchive = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
 
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' })
+        try {
+
+            const chatId = parseInt(req.body.id)
+
+            await this.chatService.addChatToArchive(userId, chatId)
+            await this.chatService.deleteChatFromUnarchive(userId, chatId)
+
+            res.json(ApiReponse.Success())
         }
-
-        await this.chatService.addChatToArchive(userId, chatId)
-        await this.chatService.deleteChatFromUnarchive(userId, chatId)
-
-        res.json({ success: false, message: '' })
+        catch {
+            res.json(ApiReponse.Error("Ошибка при добавлении чата в архив"))
+        }
     }
 
-    deleteChatFromArchive = async (req: Request, res: Response) => {
-        const userId = parseInt(req.user?.id || "")
-        const chatId = parseInt(req.body.id)
+    deleteChatFromArchive = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
 
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' })
+        try {
+            const chatId = parseInt(req.body.id)
+
+            await this.chatService.deleteChatFromArchive(userId, chatId)
+            await this.chatService.addChatToUnarchive(userId, chatId)
+
+            res.json(ApiReponse.Success())
         }
-
-        await this.chatService.deleteChatFromArchive(userId, chatId)
-        await this.chatService.addChatToUnarchive(userId, chatId)
-
-        res.json({ success: false, message: '' })
+        catch {
+            res.json(ApiReponse.Error("Ошибка при удалении чата из архива"))
+        }
     }
 
-    pinChat = async (req: Request, res: Response) => {
-        const userId = req.user?.id
-
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' })
-        }
+    pinChat = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
 
         try {
             const chatId = parseInt(req.body.id)
@@ -82,7 +84,7 @@ export class ChatController {
                 return res.status(400).json({ error: 'Chat ID is required' })
             }
 
-            const pinResult = await this.chatService.pinChat(parseInt(userId), chatId)
+            const pinResult = await this.chatService.pinChat(userId, chatId)
             res.status(200).json({ success: true, message: 'Chat pinned successfully' })
         }
         catch (error) {
@@ -91,12 +93,8 @@ export class ChatController {
         }
     }
 
-    unpinChat = async (req: Request, res: Response) => {
-        const userId = req.user?.id
-
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' })
-        }
+    unpinChat = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
 
         try {
             const chatId = req.body.chatId
@@ -105,7 +103,7 @@ export class ChatController {
                 return res.status(400).json({ error: 'Chat ID is required' })
             }
 
-            await this.chatService.unpinChat(parseInt(userId), chatId)
+            await this.chatService.unpinChat(userId, chatId)
             res.status(200).json({ success: true, message: 'Chat unpinned successfully' })
         }
         catch (error) {

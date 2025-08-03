@@ -1,7 +1,15 @@
 import { prisma } from "../prisma.js"
-import { ChatInfo } from "../interfaces/Chat.js"
+import { ChatInfo } from "../interfaces/ChatInfo.js"
 
 export class ChatService {
+
+    getAllChats = async (userId: number): Promise<ChatInfo[]> => {
+        const unarchiveChats = await this.getUnarchivedChats(userId)
+        const archiveChatss = await this.getArchivedChats(userId)
+
+        const allChats = unarchiveChats.concat(archiveChatss)
+        return allChats
+    }
 
     getUnarchivedChats = async (userId: number): Promise<Array<ChatInfo>> => {
         const unArchiveChats = await prisma.unarchiveChat.findMany({

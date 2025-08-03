@@ -7,18 +7,18 @@ import { WEBSOCKET_PORT, APP_NAME } from "./constants.js"
 import { MyWebSocket } from "./interfaces/MyWebSocket.js"
 import { Authenticate } from "./middlewares/Authentificate.js"
 import { UserService } from "./services/UserService.js"
-import { MessageService } from "./services/MessageService.js"
 import { SessionService } from "./services/SessionService.js"
+import { Message } from './interfaces/Message.js'
 
 export class WebSocketController {
 
     private userService = new UserService()
     private sessionService = new SessionService()
-    private messageService = new MessageService()
+    private authenticate = new Authenticate()
 
-    private userConnections = new Map()
+    private static userConnections = new Map<number, Map<string, MyWebSocket>>()
 
-    private usernameCache = new LRUCache({
+    private usernameCache = new LRUCache<number, string>({
         max: 100_000,
         ttl: 1000 * 60 * 60 * 24
     })
@@ -33,11 +33,10 @@ export class WebSocketController {
             credential: admin.credential.cert(serviceAccount),
         })
 
-
         this.webSocketServer.on('connection', this.handleConnection)
     }
 
-    handleConnection = async (webSocket: WebSocket, request: IncomingMessage) => {
+    private handleConnection = async (webSocket: WebSocket, request: IncomingMessage) => {
         const ws = webSocket as MyWebSocket
 
         const requestUrl = request.url || ""
@@ -50,8 +49,7 @@ export class WebSocketController {
         }
 
         try {
-            const authenticate = new Authenticate()
-            const isVerify = await authenticate.verify(token)
+            const isVerify = await this.authenticate.verify(token)
 
             if (!isVerify.isVerify) {
                 ws.close(1008, 'Недопустимый токен')
@@ -61,10 +59,11 @@ export class WebSocketController {
             ws.userId = isVerify.userId
             ws.token = token
 
-            if (!this.userConnections.has(ws.userId)) {
-                this.userConnections.set(ws.userId, new Map())
+            if (!WebSocketController.userConnections.has(ws.userId)) {
+                WebSocketController.userConnections.set(ws.userId, new Map())
             }
-            this.userConnections.get(ws.userId).set(ws.token, ws)
+
+            WebSocketController.userConnections.get(ws.userId)!.set(ws.token, ws)
 
             console.log(`Пользователь ${isVerify.userId} подключился через WebSocket`)
         } catch (err) {
@@ -76,7 +75,7 @@ export class WebSocketController {
         ws.on('close', () => this.handleConnectionClose(ws))
     }
 
-    handleMessage = async (ws: MyWebSocket, data: RawData) => {
+    private handleMessage = async (ws: MyWebSocket, data: RawData) => {
         try {
             const message = JSON.parse(data.toString())
 
@@ -96,59 +95,6 @@ export class WebSocketController {
                 return
             }
 
-            const targetId = message.receiverId
-
-            const currentUserSessions = this.userConnections.get(ws.userId)
-
-            const MAX_MESSAGE_LENGTH = 4096
-
-            const parts = []
-            const text = message.text
-
-            for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
-                const messagePart = text.slice(i, i + MAX_MESSAGE_LENGTH)
-                parts.push(messagePart)
-            }
-
-            for (let i = 0; i < parts.length; i++) {
-                const partText = parts[i]
-
-                await this.messageService.addMessage(parseInt(message.senderId), parseInt(message.receiverId), partText)
-
-                if (message.receiverId != message.senderId) {
-                    const senderName = await this.getUsername(message.senderId)
-                    await this.sendPushToUser(message.receiverId, partText, senderName, message.senderId)
-                }
-            }
-
-            if (currentUserSessions) {
-                for (const client of currentUserSessions) {
-                    if (client[1].readyState === WebSocket.OPEN && client[1].token != ws.token) {
-                        parts.forEach(part => {
-                            let g = message
-                            g.text = part
-                            client[1].send(JSON.stringify(g))
-                        })
-                    }
-                }
-            }
-
-            if (targetId != ws.userId) {
-                const connections = this.userConnections.get(targetId)
-
-                if (connections) {
-                    for (const client of connections) {
-                        if (client[1].readyState === WebSocket.OPEN && client[1].token != ws.token) {
-                            parts.forEach(part => {
-                                let g = message
-                                g.text = part
-                                client[1].send(JSON.stringify(g))
-                            })
-                        }
-                    }
-                }
-            }
-
             console.log(message)
         }
         catch (e) {
@@ -156,32 +102,70 @@ export class WebSocketController {
         }
     }
 
-    handleConnectionClose = (ws: MyWebSocket) => {
-        const userId = ws.userId
-        console.log(`User ${userId} disconnected`)
+    public static sendMessageToChat = (message: Message) => {
+        const senderId = message.senderId
+        const chatId = message.chatId
 
-        if (ws.userId && ws.token && this.userConnections.has(ws.userId)) {
-            const tokenMap = this.userConnections.get(ws.userId)
+        const ds: any = message
+        ds.sendTime = message.sendTime.getTime()
 
-            tokenMap.delete(ws.token)
+        const messageToSend = {
+            action: 'NEW_MESSAGE',
+            data: {
+                message: ds
+            }
+        }
 
-            if (tokenMap.size === 0) {
-                this.userConnections.delete(ws.userId)
+        const jsonMessage = JSON.stringify(messageToSend)
+
+        const senderSessions = this.userConnections.get(senderId)
+
+        if (senderSessions) {
+            for (const [token, clientWs] of senderSessions) {
+                if (clientWs.readyState === WebSocket.OPEN) {
+                    clientWs.send(jsonMessage)
+                }
+            }
+        }
+
+        if (chatId !== senderId) {
+            const receiverSessions = this.userConnections.get(chatId)
+            if (receiverSessions) {
+                for (const [token, clientWs] of receiverSessions) {
+                    if (clientWs.readyState === WebSocket.OPEN) {
+                        clientWs.send(jsonMessage)
+                    }
+                }
             }
         }
     }
 
-    getUsername = async (userId: number) => {
+    private handleConnectionClose = (ws: MyWebSocket) => {
+        const userId = ws.userId
+        console.log(`User ${userId} disconnected`)
+
+        if (ws.userId && ws.token && WebSocketController.userConnections.has(ws.userId)) {
+            const tokenMap = WebSocketController.userConnections.get(ws.userId)
+
+            tokenMap?.delete(ws.token)
+
+            if (tokenMap?.size === 0) {
+                WebSocketController.userConnections.delete(ws.userId)
+            }
+        }
+    }
+
+    getUsername = async (userId: number): Promise<string> => {
         const name = this.usernameCache.get(userId)
 
         if (name) {
             return name
         }
 
-        const user = await this.userService.getUserById(userId)
+        const user = await this.userService.getChatNameById(userId)
 
         if (user) {
-            const name = `${user.firstName} ${user.lastName}`
+            const name = user
             this.usernameCache.set(userId, name)
 
             return name
@@ -190,49 +174,23 @@ export class WebSocketController {
         return APP_NAME
     }
 
-    sendPushToUser = async (userId: number, messageText: string, senderName: string, chatId: number) => {
-        try {
-            const sessions = await this.sessionService.getUserSessions(userId)
-            const tokens = sessions.map(session => session.fcmToken).filter(token => token !== undefined)
+    private disconnectUserByIdAndToken = async (userId: number, token: string) => {
+        const tokenMap = WebSocketController.userConnections.get(userId)
 
-            if (tokens.length === 0) {
-                console.log('Нет токенов для отправки.')
-                return
-            }
-
-            const message = {
-                tokens: tokens,
-                data: {
-                    title: senderName,
-                    body: messageText,
-                    chatId: String(chatId),
-                }
-            }
-
-            const response = await admin.messaging().sendEachForMulticast(message)
-
-            console.log(`Push-уведомления отправлены:`, response)
-        } catch (error) {
-            console.error('Ошибка отправки уведомлений:', error)
-        }
-    }
-
-    disconnectUserByIdAndToken = async (userId: number, token: string) => {
-        const tokenMap = this.userConnections.get(userId)
-
-        if (tokenMap) {
-            const ws = tokenMap.get(token)
-
-            if (ws) {
-                ws.close(1008, 'Сессия отключена сервером')
-                tokenMap.delete(token)
-            }
-
-            if (tokenMap.size === 0) {
-                this.userConnections.delete(userId)
-            }
+        if (!tokenMap) {
+            await this.sessionService.deleteSession(userId, token)
+            return
         }
 
-        await this.sessionService.deleteSession(userId, token)
+        const ws = tokenMap.get(token)
+
+        if (ws) {
+            ws.close(1008, 'Сессия отключена сервером')
+            tokenMap.delete(token)
+        }
+
+        if (tokenMap.size === 0) {
+            WebSocketController.userConnections.delete(userId)
+        }
     }
 }

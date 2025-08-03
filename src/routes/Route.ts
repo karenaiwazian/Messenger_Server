@@ -1,42 +1,61 @@
-import { Router } from 'express'
+import { Request, Response, Router } from 'express'
 import { Authenticate } from '../middlewares/Authentificate.js'
 import { UserController } from "../controllers/UserController.js"
 import { MessageController } from '../controllers/MessageController.js'
 import { SessionController } from '../controllers/SessionController.js'
 import { ChatController } from '../controllers/ChatController.js'
+import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
+import { auth } from 'firebase-admin'
+import { FolderController } from '../controllers/FolderController.js'
+
+type AuthenticateHandler = (req: AuthenticatedRequest, res: Response) => void
+
+function wrap(handler: AuthenticateHandler) {
+    return (req: Request, res: Response) => {
+        handler(req as AuthenticatedRequest, res)
+    }
+}
 
 export const createMainRouter = (): Router => {
     const userController = new UserController()
     const messageController = new MessageController()
     const sessionController = new SessionController()
     const chatController = new ChatController()
+    const folderController = new FolderController()
 
-    const router = Router()
     const authenticate = new Authenticate().authenticate
 
+    const router = Router()
     // user
     router.post('/login', userController.login)
     router.post('/register', userController.register)
-    router.post('/logout', authenticate, userController.logout)
     router.post('/findUserByLogin', userController.findUserByLogin)
-    router.get('/searchUser', authenticate, userController.searchUsers)
-    router.get('/profile', authenticate, userController.profile)
-    router.get('/users/:id', authenticate, userController.getUserById)
-    router.put('/profileUpdate', authenticate, userController.profileUpdate)
+    router.post('/logout', authenticate, wrap(userController.logout))
+    router.get('/searchUser', authenticate, wrap(userController.searchUsers))
+    router.get('/me', authenticate, wrap(userController.getMe))
+    router.get('/user/:id', authenticate, wrap(userController.getUserById))
+    router.put('/profileUpdate', authenticate, wrap(userController.profileUpdate))
 
     // chat
-    router.get('/archivedChat', authenticate, chatController.getArchivedChats)
-    router.get('/unarchivedChat', authenticate, chatController.getUnarchivedChats)
-    router.post('/addChatToArchive', authenticate, chatController.addChatToArchive)
-    router.post('/deleteChatFromArchive', authenticate, chatController.deleteChatFromArchive)
-    router.post('/pinChat', authenticate, chatController.pinChat)
-    router.post('/unpinChat', authenticate, chatController.unpinChat)
+    router.get('/chats', authenticate, wrap(chatController.getAllChats))
+    router.get('/archivedChat', authenticate, wrap(chatController.getArchivedChats))
+    router.get('/unarchivedChat', authenticate, wrap(chatController.getUnarchivedChats))
+    router.post('/addChatToArchive', authenticate, wrap(chatController.addChatToArchive))
+    router.post('/deleteChatFromArchive', authenticate, wrap(chatController.deleteChatFromArchive))
+    router.post('/pinChat', authenticate, wrap(chatController.pinChat))
+    router.post('/unpinChat', authenticate, wrap(chatController.unpinChat))
 
     // session
-    router.post('/updateFcmToken', authenticate, sessionController.updateFcmToken)
-    router.post('/terminateAllSessions', authenticate, sessionController.terminateAllSessions)
-    router.get('/getSessions', authenticate, sessionController.getSessions)
-    router.get('/getDeviceCount', authenticate, sessionController.getDeviceCount)
+    router.post('/updateFcmToken', authenticate, wrap(sessionController.updateFcmToken))
+    router.post('/terminateAllSessions', authenticate, wrap(sessionController.terminateAllSessions))
+    router.get('/getSessions', authenticate, wrap(sessionController.getSessions))
+    router.get('/getDeviceCount', authenticate, wrap(sessionController.getDeviceCount))
+
+    // folder
+    router.get("/folders", authenticate, wrap(folderController.getFolders))
+    router.get("/folder/:id/chats", authenticate, wrap(folderController.getFolderChats))
+    router.post("/folder", authenticate, wrap(folderController.saveFolder))
+    router.delete("/folder/:id", authenticate, wrap(folderController.deleteFolder))
 
     // channel
     // router.post('/createChannel', authenticate, channelController.createChannelHandler)
@@ -45,8 +64,9 @@ export const createMainRouter = (): Router => {
     // router.post('/createGroup', authenticate, groupController.createGroupHandler)
 
     // message
-    router.get('/messages', authenticate, messageController.getMessages)
-    router.post('/deleteChat', authenticate, messageController.deleteChatMessages)
+    router.post('/sendMessage', authenticate, wrap(messageController.sendMessage))
+    router.get('/messages', authenticate, wrap(messageController.getChatMessages))
+    router.post('/deleteChat', authenticate, wrap(messageController.deleteChatMessages))
 
     return router
 }

@@ -1,16 +1,14 @@
-import { Request, Response } from 'express'
+import { Response } from 'express'
 import { SessionService } from '../services/SessionService.js'
+import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 
 export class SessionController {
-    private sessionService: SessionService
 
-    constructor() {
-        this.sessionService = new SessionService()
-    }
+    private sessionService = new SessionService()
 
-    updateFcmToken = async (req: Request, res: Response) => {
+    updateFcmToken = async (req: AuthenticatedRequest, res: Response) => {
+        const token = req.user.token
         const fcmToken = req.body.token
-        const token = req.user?.token || ""
 
         if (!fcmToken) {
             return res.status(400).json({ success: false, message: 'failure' })
@@ -24,9 +22,9 @@ export class SessionController {
         }
     }
 
-    terminateAllSessions = async (req: Request, res: Response) => {
+    terminateAllSessions = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
         const token = req.body.token
-        const userId = parseInt(req.user?.id || "")
 
         if (!token) {
             return res.status(400).json({ success: false, message: 'Token is required' })
@@ -40,22 +38,23 @@ export class SessionController {
         }
     }
 
-    getDeviceCount = async (req: Request, res: Response) => {
-        const userId = req.user?.id || ""
+    getDeviceCount = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
+
         try {
-            const count = await this.sessionService.getSessionCount(parseInt(userId))
+            const count = await this.sessionService.getSessionCount(userId)
             res.json({ count })
         } catch (err) {
             res.status(500).json({ success: false, message: 'Error fetching device count' })
         }
     }
 
-    getSessions = async (req: Request, res: Response) => {
-        const userId = req.user?.id || ""
-        const token = req.user?.token || ""
+    getSessions = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
+        const token = req.user.token
 
         try {
-            const sessions = await this.sessionService.getSessions(parseInt(userId), token)
+            const sessions = await this.sessionService.getSessions(userId, token)
             res.json(sessions)
         } catch (err) {
             res.status(500).json({ success: false, message: 'Error fetching sessions' })

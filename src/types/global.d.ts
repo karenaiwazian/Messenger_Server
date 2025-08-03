@@ -3,8 +3,8 @@ import "express"
 declare module "express" {
     interface Request {
         user?: {
-            id: string
-            token: string
+            id: number = 0
+            token: string = ""
         }
     }
 }

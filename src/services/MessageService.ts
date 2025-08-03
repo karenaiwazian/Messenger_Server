@@ -1,15 +1,33 @@
+import { send } from 'process'
 import { Message } from '../interfaces/Message.js'
 import { prisma } from '../prisma.js'
 
 export class MessageService {
 
-    getAllMessages = async (senderId: number, receiverId: number): Promise<Message[]> => {
-        return prisma.message.findMany({
+    getChatMessages = async (senderId: number, chatId: number): Promise<Message[]> => {
+        return await prisma.message.findMany({
             where: {
-                senderId: senderId,
-                chatId: receiverId
-            }, orderBy: {
+                OR: [
+                    {
+                        senderId: senderId,
+                        chatId: chatId
+                    },
+                    {
+                        senderId: chatId,
+                        chatId: senderId
+                    }
+                ]
+            },
+            orderBy: {
                 sendTime: 'asc'
+            },
+            select: {
+                id: true,
+                chatId: true,
+                senderId: true,
+                sendTime: true,
+                messageId: true,
+                text: true
             }
         })
     }
@@ -23,7 +41,7 @@ export class MessageService {
         })
     }
 
-    addMessage = async (senderId: number, chatId: number, text: string) => {
+    addMessage = async (senderId: number, chatId: number, text: string): Promise<Message> => {
         const lastMessageId = await prisma.message.count({
             where: {
                 senderId: senderId,
@@ -40,6 +58,15 @@ export class MessageService {
                     userId: senderId
                 }
             })
+
+            if (senderId != chatId) {
+                await prisma.unarchiveChat.create({
+                    data: {
+                        chatId: senderId,
+                        userId: chatId
+                    }
+                })
+            }
         }
 
         return await prisma.message.create({

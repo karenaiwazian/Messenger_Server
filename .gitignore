@@ -1,12 +1,10 @@
 *.log
+*.db
+*.sqlite
+*.env
 
 dist/
 
 node_modules/
 
 src/config/
-
-*.db
-*.sqlite
-
-/src/generated/prisma

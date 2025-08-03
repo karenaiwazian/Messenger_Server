@@ -8,24 +8,27 @@ datasource db {
 }
 
 model User {
-    id        Int     @id @default(autoincrement())
-    firstName String? @default("")
-    lastName  String? @default("")
-    bio       String? @default("")
-    username  String? @default("")
-    login     String  @unique
-    password  String
+    id            Int             @id @default(autoincrement())
+    firstName     String          @default("")
+    lastName      String          @default("")
+    bio           String          @default("")
+    username      String?         @unique
+    login         String          @unique
+    password      String
+    ChatFolder    ChatFolder[]
+    Session       Session[]
+    ArchiveChat   ArchiveChat[]
+    UnarchiveChat UnarchiveChat[]
 }
 
 model Message {
-    id                Int      @id @default(autoincrement())
-    messageId         Int
-    senderId          Int
-    chatId            Int
-    text              String
-    sendTime          DateTime @default(now())
-    deletedBySender   Boolean  @default(false)
-    deletedByReceiver Boolean  @default(false)
+    id              Int      @id @default(autoincrement())
+    messageId       Int
+    senderId        Int
+    chatId          Int
+    text            String
+    sendTime        DateTime @default(now())
+    deletedBySender Boolean  @default(false)
 }
 
 model Session {
@@ -35,6 +38,7 @@ model Session {
     fcmToken   String?  @default("")
     deviceName String?  @default("")
     createdAt  DateTime @default(now())
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ArchiveChat {
@@ -42,6 +46,7 @@ model ArchiveChat {
     userId   Int
     chatId   Int
     isPinned Boolean @default(false)
+    user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, chatId])
 }
@@ -51,6 +56,25 @@ model UnarchiveChat {
     userId   Int
     chatId   Int
     isPinned Boolean @default(false)
+    user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, chatId])
+}
+
+model ChatFolder {
+    id              Int               @id @default(autoincrement())
+    userId          Int
+    folderName      String
+    user            User              @relation(fields: [userId], references: [id])
+    ChatFolderChats ChatFolderChats[]
+}
+
+model ChatFolderChats {
+    id         Int        @id @default(autoincrement())
+    folderId   Int
+    chatId     Int
+    isPinned   Boolean    @default(false)
+    chatFolder ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+    @@unique([folderId, chatId])
 }

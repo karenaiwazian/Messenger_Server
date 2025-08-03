@@ -3,21 +3,58 @@ import { prisma } from "../prisma.js"
 
 export class UserService {
 
-    getUserById = async (id: number): Promise<UserPublicInfo | null> => {
-        return await prisma.user.findFirst({ where: { id: id } }) as UserPublicInfo
+    getUserById = async (chatId: number): Promise<UserPublicInfo> => {
+        return await prisma.user.findFirst({
+            where: {
+                id: chatId
+            }
+        }) as UserPublicInfo
     }
 
-    getUserByLogin = async (login: string): Promise<UserFullInfo | null> => {
-        return await prisma.user.findFirst({ where: { login: login } }) as UserFullInfo | null
+    getChatNameById = async (chatId: number): Promise<string | null> => {
+        const chat = await prisma.user.findFirst({
+            where: {
+                id: chatId
+            },
+            select: {
+                firstName: true,
+                lastName: true
+            }
+        })
+
+        const chatName = `${chat?.firstName} ${chat?.lastName}`
+
+        if (chatName.trim().length == 0) {
+            return null
+        }
+
+        return chatName
+    }
+
+    getUserByLogin = async (login: string): Promise<UserFullInfo> => {
+        return await prisma.user.findFirst({
+            where: {
+                login: login
+            }
+        }) as UserFullInfo
     }
 
     searchUsers = async (search: string): Promise<UserPublicInfo[]> => {
-        return await prisma.user.findMany({ where: { username: { startsWith: search } } }) as UserPublicInfo[]
+        return await prisma.user.findMany({
+            where: {
+                username: {
+                    startsWith: search
+                }
+            }
+        }) as UserPublicInfo[]
     }
 
     updateUserProfile = async (userId: number, user: UserPublicInfo): Promise<void> => {
         await prisma.user.update({
-            where: { id: userId }, data: {
+            where: {
+                id: userId
+            },
+            data: {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 bio: user.bio,
@@ -27,7 +64,11 @@ export class UserService {
     }
 
     registerUser = async (user: { login: string, password: string }): Promise<UserFullInfo> => {
-        const createdUser = await prisma.user.create({ data: { username: null, login: user.login || "", password: user.password || "" } })
-        return createdUser as UserFullInfo
+        return await prisma.user.create({
+            data: {
+                login: user.login,
+                password: user.password
+            }
+        }) as UserFullInfo
     }
 }

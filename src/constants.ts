@@ -1,9 +1,8 @@
-import { createRequire } from 'module'
+import dotenv from 'dotenv'
 
-const requireJSON = createRequire(import.meta.url)
-const constants = requireJSON('./config/constants.json')
+dotenv.config()
 
-export const SERVER_PORT = constants.server_port
-export const WEBSOCKET_PORT = constants.websocket_port
-export const JWT_SECRET = constants.secret_key
-export const APP_NAME = constants.app_name
+export const SERVER_PORT = process.env.SERVER_PORT
+export const WEBSOCKET_PORT = process.env.WEBSOCKET_PORT
+export const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY
+export const APP_NAME = process.env.APP_NAME

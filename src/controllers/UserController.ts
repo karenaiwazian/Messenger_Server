@@ -1,52 +1,65 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { JWT_SECRET } from '../constants.js'
+import { JWT_SECRET_KEY } from '../constants.js'
 import { UserFullInfo } from '../interfaces/User.js'
 import { Request, Response } from 'express'
 import { UserService } from "../services/UserService.js"
 import { SessionInfo } from '../interfaces/Session.js'
 import { SessionService } from '../services/SessionService.js'
-import { MessageService } from '../services/MessageService.js'
+import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
+import { ApiReponse } from '../interfaces/ApiResponse.js'
 
 export class UserController {
 
-    private userService: UserService
-    private sessionService: SessionService
-    private chatService: MessageService
+    private userService = new UserService()
+    private sessionService = new SessionService()
 
-    constructor() {
-        this.userService = new UserService()
-        this.sessionService = new SessionService()
-        this.chatService = new MessageService()
-    }
-
-    getUserById = async (req: Request, res: Response) => {
+    getUserById = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const id = parseInt(req.params.id)
-            const user = await this.userService.getUserById(id);
+            const user = await this.userService.getUserById(id)
+
             if (user) {
                 res.json(user);
             } else {
-                res.status(404).json({ message: "User not found" });
+                res.status(404).json({ message: "User not found" })
             }
-        } catch (error: any) {
-            res.status(500).json({ message: "Error fetching user by ID", error: error.message });
+        } catch (error) {
+            console.error("Не удалось получить пользователя " + error)
+            res.status(500).json(ApiReponse.Error("Не удалось получить пользователя"))
         }
     }
 
-    searchUsers = async (req: Request, res: Response) => {
+    getMe = async (req: AuthenticatedRequest, res: Response) => {
         try {
-            const search = req.query.search?.toString() || '';
-            const users = await this.userService.searchUsers(search);
-            res.json(users);
-        } catch (error: any) {
-            res.status(500).json({ message: "Error searching users", error: error.message });
+            const id = req.user.id
+            const user = await this.userService.getUserById(id)
+
+            if (user) {
+                res.json(user)
+            } else {
+                res.status(404).json({ message: "User not found" })
+            }
+        } catch (error) {
+            console.error("Не удалось получить пользователя " + error)
+            res.status(500).json(ApiReponse.Error("Не удалось получить пользователя"))
         }
     }
 
-    logout = async (req: Request, res: Response) => {
-        const userId = parseInt(req.user?.id || "")
-        const token = req.user?.token || ""
+    searchUsers = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const search = req.query.search?.toString() || ''
+            const users = await this.userService.searchUsers(search)
+            res.json(users);
+        } catch (error) {
+            console.error("Не удалось найти пользователя " + error)
+            res.status(500).json(ApiReponse.Error("Не удалось найти пользователя"))
+        }
+    }
+
+    logout = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
+        const token = req.user.token
 
         try {
             await this.sessionService.deleteSession(userId, token)
@@ -76,96 +89,76 @@ export class UserController {
         }
     }
 
-    profile = async (req: Request, res: Response) => {
-        const userId = req.user?.id || ""
-
-        try {
-            const user = await this.userService.getUserById(parseInt(userId))
-
-            if (!user) {
-                res.status(404).json({ error: 'Пользователь не найден' })
-                return
-            }
-
-            res.json({
-                id: user.id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                username: user.username || '',
-                bio: user.bio || ''
-            })
-        } catch (error) {
-            console.error('Ошибка при получении профиля:', error)
-            res.status(500).json({ error: 'Ошибка сервера' })
-        }
-    }
-
-
-    profileUpdate = async (req: Request, res: Response) => {
-        const userId = parseInt(req.user?.id || "")
+    profileUpdate = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.user.id
         const data = req.body
 
         const user: UserFullInfo = {
             id: userId,
-            firstName: data.firstName.toString().trim(),
-            lastName: data.lastName.toString().trim(),
-            username: data.username.toString().trim().length <= 0 ? null : data.username.toString().trim(),
-            bio: data.bio.toString().trim()
+            firstName: data.firstName?.toString().trim(),
+            lastName: data.lastName?.toString().trim(),
+            username: data.username?.trim(),
+            bio: data.bio?.toString().trim()
         }
 
         try {
             await this.userService.updateUserProfile(userId, user)
-            res.json({ success: true })
+            res.json(ApiReponse.Success())
         } catch (error) {
             console.error('Ошибка при обновлении профиля:', error)
-            res.status(500).json({ error: 'Ошибка сервера' })
+            res.status(500).json(ApiReponse.Error("Не удалось обновить профиль"))
         }
     }
 
     login = async (req: Request, res: Response) => {
-        const { login, password, deviceName } = req.body
+        try {
+            const { login, password, deviceName } = req.body
 
-        if (!password || !login || !deviceName) {
-            res.status(401).json({ error: 'Заполните пропуски' })
-            return
-        }
-
-        const validLogin = login.trim()
-        const validPassword = password.trim()
-        const validDeviceName = deviceName.trim()
-
-        const user = await this.userService.getUserByLogin(validLogin)
-
-        if (user && user.password && await bcrypt.compare(validPassword, user.password)) {
-            const token = jwt.sign({ id: user.id }, JWT_SECRET)
-
-            const sessionInfo: SessionInfo = {
-                id: 0,
-                userId: user.id,
-                deviceName: validDeviceName,
-                token: token,
-                createdAt: new Date(),
+            if (!password || !login || !deviceName) {
+                res.status(401).json({ error: 'Заполните пропуски' })
+                return
             }
 
-            const addedSession = await this.sessionService.addSession(sessionInfo)
+            const validLogin = login.trim()
+            const validPassword = password.trim()
+            const validDeviceName = deviceName.trim()
 
-            res.json({ token })
-        } else {
-            res.status(401).json({ error: 'Неверный логин или пароль' })
+            const user = await this.userService.getUserByLogin(validLogin)
+
+            if (user && user.password && await bcrypt.compare(validPassword, user.password)) {
+                const token = jwt.sign({ id: user.id }, JWT_SECRET_KEY)
+
+                const sessionInfo: SessionInfo = {
+                    id: 0,
+                    userId: user.id,
+                    deviceName: validDeviceName,
+                    token: token,
+                    createdAt: new Date(),
+                }
+
+                const addedSession = await this.sessionService.addSession(sessionInfo)
+
+                res.json({ token })
+            } else {
+                res.status(401).json({ error: 'Неверный логин или пароль' })
+            }
+        } catch (e) {
+            console.error("Ошибка при авторизации", e)
+            res.status(400).json(ApiReponse.Error("Ошибка при авторизации"))
         }
     }
 
     register = async (req: Request, res: Response) => {
-        const { login, password, deviceName } = req.body
-
-        if (!login || !password) {
-            res.status(400).json({ error: 'Заполните пропуски' })
-            return
-        }
-
-        const hash = await bcrypt.hash(password, 10)
-
         try {
+            const { login, password, deviceName } = req.body
+
+            if (!login || !password) {
+                res.status(400).json({ error: 'Заполните пропуски' })
+                return
+            }
+
+            const hash = await bcrypt.hash(password, 10)
+
             const registerInfo = {
                 login: login.trim(),
                 password: hash,
@@ -173,7 +166,7 @@ export class UserController {
 
             const registerResult = await this.userService.registerUser(registerInfo)
 
-            const userToken = jwt.sign({ id: registerResult.id }, JWT_SECRET)
+            const userToken = jwt.sign({ id: registerResult.id }, JWT_SECRET_KEY)
 
             const sessionInfo: SessionInfo = {
                 id: 0,
@@ -183,12 +176,11 @@ export class UserController {
                 createdAt: new Date(),
             }
 
-            const addedSession = await this.sessionService.addSession(sessionInfo)
-
             res.json({ token: sessionInfo.token })
             console.log('Пользователь зарегистрирован')
         } catch (e) {
-            res.status(400).json({ error: 'Пользователь уже существует' })
+            console.error("Ошибка при регистрации", e)
+            res.status(400).json(ApiReponse.Error("Ошибка при регистрации"))
         }
     }
 }
