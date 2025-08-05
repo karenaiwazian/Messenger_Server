@@ -2,10 +2,12 @@ import { ChatInfo } from "../interfaces/ChatInfo.js"
 import { ChatFolder } from "../interfaces/ChatFolder.js"
 import { prisma } from "../prisma.js"
 import { UserService } from "./UserService.js"
+import { ChatService } from "./ChatService.js"
 
 export class FolderService {
 
     private userService = new UserService()
+    private chatService = new ChatService()
 
     createFolder = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
         const createdFolder = await prisma.chatFolder.create({
@@ -68,7 +70,11 @@ export class FolderService {
             }
         })
 
-        const result = await Promise.all(chatPromises)
+        const result = await Promise.all(chatPromises) as ChatInfo[]
+
+        for await (const chat of result) {
+            chat.lastMessage = await this.chatService.getChatLastMessage(chat.id)
+        }
 
         return result
     }

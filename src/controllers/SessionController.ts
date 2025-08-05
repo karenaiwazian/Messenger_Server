@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { SessionService } from '../services/SessionService.js'
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
+import { ApiReponse } from '../interfaces/ApiResponse.js'
 
 export class SessionController {
 
@@ -23,37 +24,45 @@ export class SessionController {
     }
 
     terminateAllSessions = async (req: AuthenticatedRequest, res: Response) => {
-        const userId = req.user.id
-        const token = req.body.token
-
-        if (!token) {
-            return res.status(400).json({ success: false, message: 'Token is required' })
-        }
-
         try {
+            const userId = req.user.id
+            const token = req.user.token
+
             await this.sessionService.termitateAllSessions(userId, token)
+
             res.status(200).json({ success: true, message: 'All sessions terminated' })
         } catch (err) {
             res.status(500).json({ success: false, message: 'Error terminating sessions' })
         }
     }
 
-    getDeviceCount = async (req: AuthenticatedRequest, res: Response) => {
-        const userId = req.user.id
-
+    terminateSession = async (req: AuthenticatedRequest, res: Response) => {
         try {
+            const sessionId = parseInt(req.params.id)
+            this.sessionService.terminateSession(sessionId)
+            res.json(ApiReponse.Success())
+        } catch (error) {
+            res.json(ApiReponse.Error("Error terminating session"))
+        }
+    }
+
+    getDeviceCount = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const userId = req.user.id
+
             const count = await this.sessionService.getSessionCount(userId)
-            res.json({ count })
+
+            res.json(count)
         } catch (err) {
             res.status(500).json({ success: false, message: 'Error fetching device count' })
         }
     }
 
     getSessions = async (req: AuthenticatedRequest, res: Response) => {
-        const userId = req.user.id
-        const token = req.user.token
-
         try {
+            const userId = req.user.id
+            const token = req.user.token
+
             const sessions = await this.sessionService.getSessions(userId, token)
             res.json(sessions)
         } catch (err) {

@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { ChatService } from "../services/ChatService.js"
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
+import { ChatInfo } from '../interfaces/ChatInfo.js'
 
 export class ChatController {
 
@@ -9,6 +10,7 @@ export class ChatController {
 
     getAllChats = async (req: AuthenticatedRequest, res: Response) => {
         const userId = req.user.id
+
         try {
             const chats = await this.chatService.getAllChats(userId)
             res.json(chats)
@@ -45,8 +47,9 @@ export class ChatController {
         const userId = req.user.id
 
         try {
+            const chat = req.body as ChatInfo
 
-            const chatId = parseInt(req.body.id)
+            const chatId = chat.id
 
             await this.chatService.addChatToArchive(userId, chatId)
             await this.chatService.deleteChatFromUnarchive(userId, chatId)
@@ -62,7 +65,9 @@ export class ChatController {
         const userId = req.user.id
 
         try {
-            const chatId = parseInt(req.body.id)
+            const chat = req.body as ChatInfo
+
+            const chatId = chat.id
 
             await this.chatService.deleteChatFromArchive(userId, chatId)
             await this.chatService.addChatToUnarchive(userId, chatId)
@@ -78,7 +83,9 @@ export class ChatController {
         const userId = req.user.id
 
         try {
-            const chatId = parseInt(req.body.id)
+            const chat = req.body as ChatInfo
+
+            const chatId = chat.id
 
             if (!chatId) {
                 return res.status(400).json({ error: 'Chat ID is required' })
@@ -97,7 +104,9 @@ export class ChatController {
         const userId = req.user.id
 
         try {
-            const chatId = req.body.chatId
+            const chat = req.body as ChatInfo
+
+            const chatId = chat.id
 
             if (!chatId) {
                 return res.status(400).json({ error: 'Chat ID is required' })

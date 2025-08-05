@@ -5,7 +5,6 @@ import { MessageController } from '../controllers/MessageController.js'
 import { SessionController } from '../controllers/SessionController.js'
 import { ChatController } from '../controllers/ChatController.js'
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
-import { auth } from 'firebase-admin'
 import { FolderController } from '../controllers/FolderController.js'
 
 type AuthenticateHandler = (req: AuthenticatedRequest, res: Response) => void
@@ -26,11 +25,11 @@ export const createMainRouter = (): Router => {
     const authenticate = new Authenticate().authenticate
 
     const router = Router()
+
     // user
     router.post('/login', userController.login)
     router.post('/register', userController.register)
     router.post('/findUserByLogin', userController.findUserByLogin)
-    router.post('/logout', authenticate, wrap(userController.logout))
     router.get('/searchUser', authenticate, wrap(userController.searchUsers))
     router.get('/me', authenticate, wrap(userController.getMe))
     router.get('/user/:id', authenticate, wrap(userController.getUserById))
@@ -48,8 +47,9 @@ export const createMainRouter = (): Router => {
     // session
     router.post('/updateFcmToken', authenticate, wrap(sessionController.updateFcmToken))
     router.post('/terminateAllSessions', authenticate, wrap(sessionController.terminateAllSessions))
-    router.get('/getSessions', authenticate, wrap(sessionController.getSessions))
-    router.get('/getDeviceCount', authenticate, wrap(sessionController.getDeviceCount))
+    router.get('/sessions', authenticate, wrap(sessionController.getSessions))
+    router.get('/sessionCOunt', authenticate, wrap(sessionController.getDeviceCount))
+    router.delete('/session/:id', authenticate, wrap(sessionController.terminateSession))
 
     // folder
     router.get("/folders", authenticate, wrap(folderController.getFolders))
@@ -64,7 +64,7 @@ export const createMainRouter = (): Router => {
     // router.post('/createGroup', authenticate, groupController.createGroupHandler)
 
     // message
-    router.post('/sendMessage', authenticate, wrap(messageController.sendMessage))
+    router.post('/message', authenticate, wrap(messageController.sendMessage))
     router.get('/messages', authenticate, wrap(messageController.getChatMessages))
     router.post('/deleteChat', authenticate, wrap(messageController.deleteChatMessages))
 

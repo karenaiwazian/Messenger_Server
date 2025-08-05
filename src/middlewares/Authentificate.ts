@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import jwt, { JwtPayload } from 'jsonwebtoken'
 import { NextFunction, Request, Response } from 'express'
 import { SessionService } from '../services/SessionService.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
@@ -18,15 +18,15 @@ export class Authenticate {
         }
 
         try {
-            const checkVerify = await this.verify(token)
+            const { isVerify, userId } = await this.verify(token)
 
-            if (!checkVerify.isVerify) {
+            if (!isVerify) {
                 console.error("Session not found")
                 return res.status(401).json(ApiReponse.Error("Session not found"))
             }
 
             req.user = {
-                id: checkVerify.userId,
+                id: userId,
                 token: token
             }
 
@@ -38,8 +38,8 @@ export class Authenticate {
     }
 
     verify = async (token: string) => {
-        const payload: any = jwt.verify(token, JWT_SECRET_KEY)
-        const userId = payload.id
+        const payload = jwt.verify(token, JWT_SECRET_KEY!) as JwtPayload
+        const userId: number = payload.id
         const isVerify = await this.sessionService.hasSession(userId, token)
 
         return {

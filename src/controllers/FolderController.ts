@@ -32,15 +32,14 @@ export class FolderController {
     }
 
     saveFolder = async (req: AuthenticatedRequest, res: Response) => {
-        const userId = req.user.id
-        const folder = req.body as ChatFolder
-        folder.userId = userId
-
         try {
+            const userId = req.user.id
+            const folder = req.body as ChatFolder
+            folder.userId = userId
+
             if (folder.id != 0) {
                 await this.folderService.updateFolderName(folder.id, folder.folderName)
-            }
-            else {
+            } else {
                 const createdFolder = await this.folderService.createFolder(folder)
                 folder.id = createdFolder.id
             }
@@ -54,8 +53,8 @@ export class FolderController {
             }
 
             res.json(ApiReponse.Success())
-        } catch (e: any) {
-            console.error("Ошибка при создании/обновлении папки с чатами " + e)
+        } catch (error) {
+            console.error("Ошибка при создании/обновлении папки с чатами " + error)
             res.json(ApiReponse.Error("Ошибка при загрузке чатов"))
         }
     }

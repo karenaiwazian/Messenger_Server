@@ -57,24 +57,11 @@ export class UserController {
         }
     }
 
-    logout = async (req: AuthenticatedRequest, res: Response) => {
-        const userId = req.user.id
-        const token = req.user.token
-
-        try {
-            await this.sessionService.deleteSession(userId, token)
-            res.json({ success: true })
-        } catch (error) {
-            console.error('Ошибка при выходе из системы:', error)
-            res.status(500).json({ error: 'Ошибка сервера' })
-        }
-    }
-
     findUserByLogin = async (req: Request, res: Response) => {
-        const login = req.body.login
-
         try {
-            const user = await this.userService.getUserByLogin(login)
+            const login: string = req.body.login
+            const validLogin = login.trim()
+            const user = await this.userService.getUserByLogin(validLogin)
 
             if (!user) {
                 res.json({ success: false, message: 'Пользователь не найден' })
@@ -157,7 +144,7 @@ export class UserController {
                 return
             }
 
-            const hash = await bcrypt.hash(password, 10)
+            const hash = await bcrypt.hash(password.trim(), 10)
 
             const registerInfo = {
                 login: login.trim(),

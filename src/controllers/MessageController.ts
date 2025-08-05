@@ -8,7 +8,6 @@ import { Notification } from '../interfaces/Notification.js'
 import { UserService } from '../services/UserService.js'
 import { APP_NAME } from '../constants.js'
 import { WebSocketController } from '../WebSocket.js'
-import { prisma } from '../prisma.js'
 
 export class MessageController {
 
@@ -33,7 +32,7 @@ export class MessageController {
 
         try {
             for (let i = 0; i < messageParts.length; i++) {
-                const partText = messageParts[i]
+                const partText = messageParts[i].trim()
 
                 const sentMessage = await this.messageService.addMessage(userId, chatId, partText)
 

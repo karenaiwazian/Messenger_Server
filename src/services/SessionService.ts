@@ -1,22 +1,45 @@
+import { Not } from 'typeorm'
 import { SessionInfo } from '../interfaces/Session.js'
 import { prisma } from '../prisma.js'
 
 export class SessionService {
 
     updateFcmToken = async (token: string, fcmToken: string): Promise<void> => {
-        await prisma.session.update({ where: { token: token }, data: { fcmToken: fcmToken } })
+        await prisma.session.update({
+            where: {
+                token: token
+            },
+            data: {
+                fcmToken: fcmToken
+            }
+        })
     }
 
     termitateAllSessions = async (userId: number, token: string): Promise<void> => {
-        await prisma.session.deleteMany({ where: { userId: userId } })
+        await prisma.session.deleteMany({
+            where: {
+                userId: userId,
+                NOT: {
+                    token: token
+                }
+            }
+        })
     }
 
     getSessionCount = async (userId: number): Promise<number> => {
-        return await prisma.session.count({ where: { userId } })
+        return await prisma.session.count({
+            where: {
+                userId
+            }
+        })
     }
 
     getSession = async (sessionId: number, userId: number): Promise<SessionInfo | null> => {
-        return await prisma.session.findFirst({ where: { id: sessionId, userId: userId } }) as SessionInfo
+        return await prisma.session.findFirst({
+            where: {
+                id: sessionId, userId: userId
+            }
+        }) as SessionInfo
     }
 
     getSessions = async (userId: number, token: string): Promise<Array<SessionInfo>> => {
@@ -38,10 +61,17 @@ export class SessionService {
         }) as SessionInfo[]
     }
 
-    deleteSession = async (userId: number, token: string): Promise<void> => {
+    terminateSession = async (sessionId: number): Promise<void> => {
         await prisma.session.delete({
             where: {
-                userId: userId,
+                id: sessionId
+            }
+        })
+    }
+
+    terminateSessionByToken = async (token: string): Promise<void> => {
+        await prisma.session.delete({
+            where: {
                 token: token
             }
         })
@@ -61,6 +91,11 @@ export class SessionService {
     }
 
     hasSession = async (userId: number, token: string): Promise<boolean> => {
-        return !!await prisma.session.findFirst({ where: { userId: userId, token: token } })
+        return !!await prisma.session.findFirst({
+            where: {
+                userId: userId,
+                token: token
+            }
+        })
     }
 }

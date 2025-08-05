@@ -1,5 +1,6 @@
 import { prisma } from "../prisma.js"
 import { ChatInfo } from "../interfaces/ChatInfo.js"
+import { Message } from "../interfaces/Message.js"
 
 export class ChatService {
 
@@ -8,6 +9,7 @@ export class ChatService {
         const archiveChatss = await this.getArchivedChats(userId)
 
         const allChats = unarchiveChats.concat(archiveChatss)
+
         return allChats
     }
 
@@ -89,6 +91,26 @@ export class ChatService {
         await this.togglePinChat(userId, chatId, false)
     }
 
+    getChatLastMessage = async (chatId: number): Promise<Message | null> => {
+        const lastMessage = await prisma.message.findFirst({
+            where: {
+                chatId: chatId
+            },
+            orderBy: {
+                sendTime: 'desc',
+            }
+        })
+
+        if (lastMessage) {
+            return {
+                ...lastMessage,
+                sendTime: lastMessage.sendTime.getTime()
+            }
+        } else {
+            return null
+        }
+    }
+
     private isArchiveChat = async (userId: number, chatId: number): Promise<boolean> => {
         const chat = await prisma.archiveChat.findFirst({
             where: {
@@ -147,12 +169,15 @@ export class ChatService {
             }
         })
 
-        const chatInfo: ChatInfo[] = users.map(user => ({
+        const chatInfo: ChatInfo[] = await Promise.all(users.map(async user => ({
             id: user.id,
             chatName: `${user.firstName} ${user.lastName}`,
             isPinned: chats.find(chat => chat.chatId === user.id)?.isPinned || false,
-        })).sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+            lastMessage: await this.getChatLastMessage(user.id)
+        })))
 
-        return chatInfo
+        const sortedChatInfo = chatInfo.sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+
+        return sortedChatInfo
     }
 }

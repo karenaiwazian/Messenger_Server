@@ -6,13 +6,11 @@ import { RawData, WebSocket, WebSocketServer } from "ws"
 import { WEBSOCKET_PORT, APP_NAME } from "./constants.js"
 import { MyWebSocket } from "./interfaces/MyWebSocket.js"
 import { Authenticate } from "./middlewares/Authentificate.js"
-import { UserService } from "./services/UserService.js"
 import { SessionService } from "./services/SessionService.js"
 import { Message } from './interfaces/Message.js'
 
 export class WebSocketController {
 
-    private userService = new UserService()
     private sessionService = new SessionService()
     private authenticate = new Authenticate()
 
@@ -68,6 +66,7 @@ export class WebSocketController {
             console.log(`Пользователь ${isVerify.userId} подключился через WebSocket`)
         } catch (err) {
             ws.close(1008, 'Ошибка проверки токена')
+            return
         }
 
         ws.on('message', (data) => this.handleMessage(ws, data))
@@ -106,13 +105,13 @@ export class WebSocketController {
         const senderId = message.senderId
         const chatId = message.chatId
 
-        const ds: any = message
-        ds.sendTime = message.sendTime.getTime()
+        // const ds: any = message
+        // ds.sendTime = message.sendTime
 
         const messageToSend = {
             action: 'NEW_MESSAGE',
             data: {
-                message: ds
+                message: message
             }
         }
 
@@ -155,30 +154,11 @@ export class WebSocketController {
         }
     }
 
-    getUsername = async (userId: number): Promise<string> => {
-        const name = this.usernameCache.get(userId)
-
-        if (name) {
-            return name
-        }
-
-        const user = await this.userService.getChatNameById(userId)
-
-        if (user) {
-            const name = user
-            this.usernameCache.set(userId, name)
-
-            return name
-        }
-
-        return APP_NAME
-    }
-
     private disconnectUserByIdAndToken = async (userId: number, token: string) => {
         const tokenMap = WebSocketController.userConnections.get(userId)
 
         if (!tokenMap) {
-            await this.sessionService.deleteSession(userId, token)
+            await this.sessionService.terminateSessionByToken(token)
             return
         }
 

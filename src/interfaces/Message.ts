@@ -4,5 +4,5 @@ export type Message = {
     senderId: number
     chatId: number
     text: string
-    sendTime: Date
+    sendTime: number
 }

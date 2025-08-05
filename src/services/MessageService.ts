@@ -1,11 +1,10 @@
-import { send } from 'process'
 import { Message } from '../interfaces/Message.js'
 import { prisma } from '../prisma.js'
 
 export class MessageService {
 
     getChatMessages = async (senderId: number, chatId: number): Promise<Message[]> => {
-        return await prisma.message.findMany({
+        const messages = await prisma.message.findMany({
             where: {
                 OR: [
                     {
@@ -30,6 +29,15 @@ export class MessageService {
                 text: true
             }
         })
+
+        const formattedMessages: Message[] = messages.map(message => {
+            return {
+                ...message,
+                sendTime: message.sendTime.getTime()
+            }
+        })
+
+        return formattedMessages
     }
 
     deleteAllMessagesInChat = async (senderId: number, receiverId: number): Promise<void> => {
@@ -69,7 +77,7 @@ export class MessageService {
             }
         }
 
-        return await prisma.message.create({
+        const createdMessage = await prisma.message.create({
             data: {
                 messageId: messageId,
                 senderId: senderId,
@@ -77,5 +85,10 @@ export class MessageService {
                 text: text
             }
         })
+
+        return {
+            ...createdMessage,
+            sendTime: createdMessage.sendTime.getTime()
+        }
     }
 }

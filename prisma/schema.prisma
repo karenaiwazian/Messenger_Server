@@ -8,17 +8,22 @@ datasource db {
 }
 
 model User {
-    id            Int             @id @default(autoincrement())
-    firstName     String          @default("")
-    lastName      String          @default("")
-    bio           String          @default("")
-    username      String?         @unique
-    login         String          @unique
-    password      String
-    ChatFolder    ChatFolder[]
-    Session       Session[]
-    ArchiveChat   ArchiveChat[]
-    UnarchiveChat UnarchiveChat[]
+    id                Int                 @id @default(autoincrement())
+    firstName         String              @default("")
+    lastName          String              @default("")
+    bio               String              @default("")
+    username          String?             @unique
+    login             String              @unique
+    password          String
+    ChatFolder        ChatFolder[]
+    Session           Session[]
+    ArchiveChat       ArchiveChat[]
+    UnarchiveChat     UnarchiveChat[]
+    Channel           Channel[]
+    Group             Group[]
+    GroupMember       GroupMember[]
+    ChannelSubscriber ChannelSubscriber[]
+    PrivacySettings   PrivacySettings[]
 }
 
 model Message {
@@ -39,6 +44,8 @@ model Session {
     deviceName String?  @default("")
     createdAt  DateTime @default(now())
     user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, token])
 }
 
 model ArchiveChat {
@@ -65,7 +72,7 @@ model ChatFolder {
     id              Int               @id @default(autoincrement())
     userId          Int
     folderName      String
-    user            User              @relation(fields: [userId], references: [id])
+    user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
     ChatFolderChats ChatFolderChats[]
 }
 
@@ -77,4 +84,48 @@ model ChatFolderChats {
     chatFolder ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
     @@unique([folderId, chatId])
+}
+
+model Channel {
+    id                Int                 @id @default(autoincrement())
+    name              String
+    bio               String
+    userId            Int
+    user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    ChannelSubscriber ChannelSubscriber[]
+}
+
+model ChannelSubscriber {
+    id        Int     @id @default(autoincrement())
+    userId    Int
+    channelId Int
+    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, channelId])
+}
+
+model Group {
+    id          Int           @id @default(autoincrement())
+    name        String
+    bio         String
+    userId      Int
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    GroupMember GroupMember[]
+}
+
+model GroupMember {
+    id      Int   @id @default(autoincrement())
+    groupId Int
+    userId  Int
+    user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+    @@unique([groupId, userId])
+}
+
+model PrivacySettings {
+    id     Int  @id @default(autoincrement())
+    userId Int  @unique
+    user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
