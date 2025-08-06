@@ -29,11 +29,13 @@ export const createMainRouter = (): Router => {
     // user
     router.post('/login', userController.login)
     router.post('/register', userController.register)
-    router.post('/findUserByLogin', userController.findUserByLogin)
+    router.delete('/logout', authenticate, wrap(userController.logout))
+    router.get('/findUserByLogin/:login', userController.findUserByLogin)
     router.get('/searchUser', authenticate, wrap(userController.searchUsers))
     router.get('/me', authenticate, wrap(userController.getMe))
     router.get('/user/:id', authenticate, wrap(userController.getUserById))
     router.put('/profileUpdate', authenticate, wrap(userController.profileUpdate))
+    router.patch('/changeCloudPassword', authenticate, wrap(userController.changeCloudPassword))
 
     // chat
     router.get('/chats', authenticate, wrap(chatController.getAllChats))
@@ -43,6 +45,7 @@ export const createMainRouter = (): Router => {
     router.post('/deleteChatFromArchive', authenticate, wrap(chatController.deleteChatFromArchive))
     router.post('/pinChat', authenticate, wrap(chatController.pinChat))
     router.post('/unpinChat', authenticate, wrap(chatController.unpinChat))
+    router.delete('/chat', authenticate, wrap(chatController.deleteChat))
 
     // session
     router.post('/updateFcmToken', authenticate, wrap(sessionController.updateFcmToken))

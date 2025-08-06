@@ -120,4 +120,19 @@ export class ChatController {
             res.status(500).json({ error: 'Error' })
         }
     }
+
+    deleteChat = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const userId = req.user.id
+            const chatId = Number(req.query.chatId)
+            const deleteForReceiver = Boolean(req.query.deleteForReceiver)
+
+            await this.chatService.deleteChat(userId, chatId, deleteForReceiver)
+
+            res.status(200).json(ApiReponse.Success())
+        } catch (error) {
+            res.json(ApiReponse.Error("Ошибка при удалении чата"))
+            console.error("Ошибка при удалении чата " + error)
+        }
+    }
 }

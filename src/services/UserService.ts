@@ -63,6 +63,17 @@ export class UserService {
         })
     }
 
+    changeCloudPassword = async (userId: number, password: string): Promise<void> => {
+        await prisma.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                password: password
+            }
+        })
+    }
+
     registerUser = async (user: { login: string, password: string }): Promise<UserFullInfo> => {
         return await prisma.user.create({
             data: {

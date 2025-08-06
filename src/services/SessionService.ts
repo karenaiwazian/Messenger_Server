@@ -1,4 +1,3 @@
-import { Not } from 'typeorm'
 import { SessionInfo } from '../interfaces/Session.js'
 import { prisma } from '../prisma.js'
 
@@ -61,7 +60,7 @@ export class SessionService {
         }) as SessionInfo[]
     }
 
-    terminateSession = async (sessionId: number): Promise<void> => {
+    terminateSessionById = async (sessionId: number): Promise<void> => {
         await prisma.session.delete({
             where: {
                 id: sessionId

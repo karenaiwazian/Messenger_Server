@@ -111,6 +111,45 @@ export class ChatService {
         }
     }
 
+    deleteChat = async (userId: number, chatId: number, deleteForReceiver: boolean): Promise<void> => {
+        if (deleteForReceiver) {
+            await prisma.message.deleteMany({
+                where: {
+                    senderId: userId,
+                    chatId: chatId
+                }
+            })
+        } else {
+            await prisma.message.updateMany({
+                where: {
+                    senderId: userId,
+                    chatId: chatId
+                },
+                data: {
+                    deletedBySender: true
+                }
+            })
+        }
+
+        const isArchive = await this.isArchiveChat(userId, chatId)
+        if (isArchive) {
+            await prisma.archiveChat.deleteMany({
+                where: {
+                    userId: userId,
+                    chatId: chatId
+                }
+            })
+        }
+        else {
+            await prisma.unarchiveChat.deleteMany({
+                where: {
+                    userId: userId,
+                    chatId: chatId
+                }
+            })
+        }
+    }
+
     private isArchiveChat = async (userId: number, chatId: number): Promise<boolean> => {
         const chat = await prisma.archiveChat.findFirst({
             where: {

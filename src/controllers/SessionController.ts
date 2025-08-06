@@ -39,7 +39,7 @@ export class SessionController {
     terminateSession = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const sessionId = parseInt(req.params.id)
-            this.sessionService.terminateSession(sessionId)
+            this.sessionService.terminateSessionById(sessionId)
             res.json(ApiReponse.Success())
         } catch (error) {
             res.json(ApiReponse.Error("Error terminating session"))

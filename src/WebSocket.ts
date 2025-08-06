@@ -1,25 +1,17 @@
 import admin from 'firebase-admin'
-import { LRUCache } from "lru-cache"
 import { createRequire } from "module"
 import { IncomingMessage } from "http"
 import { RawData, WebSocket, WebSocketServer } from "ws"
 import { WEBSOCKET_PORT, APP_NAME } from "./constants.js"
 import { MyWebSocket } from "./interfaces/MyWebSocket.js"
 import { Authenticate } from "./middlewares/Authentificate.js"
-import { SessionService } from "./services/SessionService.js"
 import { Message } from './interfaces/Message.js'
 
 export class WebSocketController {
 
-    private sessionService = new SessionService()
     private authenticate = new Authenticate()
 
     private static userConnections = new Map<number, Map<string, MyWebSocket>>()
-
-    private usernameCache = new LRUCache<number, string>({
-        max: 100_000,
-        ttl: 1000 * 60 * 60 * 24
-    })
 
     private webSocketServer = new WebSocketServer({ port: WEBSOCKET_PORT })
 
@@ -43,6 +35,7 @@ export class WebSocketController {
 
         if (!token) {
             ws.close(1008, 'Нет токена')
+            console.log("Не удалось подключиться к вебсокету без токена")
             return
         }
 
@@ -51,6 +44,7 @@ export class WebSocketController {
 
             if (!isVerify.isVerify) {
                 ws.close(1008, 'Недопустимый токен')
+                console.log("Не удалось подключиться к вебсокету с недопустимым токеном")
                 return
             }
 
@@ -78,35 +72,16 @@ export class WebSocketController {
         try {
             const message = JSON.parse(data.toString())
 
-            if (message.action == "DISMISS_SESSION") {
-                const sessionId = message.data.sessionId
-                const session = await this.sessionService.getSession(sessionId, ws.userId)
-
-                const token = session?.token
-
-                if (!token) {
-                    ws.close(1008, 'Сессия не найдена')
-                    return
-                }
-
-                this.disconnectUserByIdAndToken(ws.userId, token)
-
-                return
-            }
-
             console.log(message)
         }
         catch (e) {
-            console.log('handleMessage error', e)
+            console.log('Обработка сообщения вебсокета', e)
         }
     }
 
     public static sendMessageToChat = (message: Message) => {
         const senderId = message.senderId
         const chatId = message.chatId
-
-        // const ds: any = message
-        // ds.sendTime = message.sendTime
 
         const messageToSend = {
             action: 'NEW_MESSAGE',
@@ -141,7 +116,7 @@ export class WebSocketController {
 
     private handleConnectionClose = (ws: MyWebSocket) => {
         const userId = ws.userId
-        console.log(`User ${userId} disconnected`)
+        console.log(`Пользователь ${userId} отключился`)
 
         if (ws.userId && ws.token && WebSocketController.userConnections.has(ws.userId)) {
             const tokenMap = WebSocketController.userConnections.get(ws.userId)
@@ -151,26 +126,6 @@ export class WebSocketController {
             if (tokenMap?.size === 0) {
                 WebSocketController.userConnections.delete(ws.userId)
             }
-        }
-    }
-
-    private disconnectUserByIdAndToken = async (userId: number, token: string) => {
-        const tokenMap = WebSocketController.userConnections.get(userId)
-
-        if (!tokenMap) {
-            await this.sessionService.terminateSessionByToken(token)
-            return
-        }
-
-        const ws = tokenMap.get(token)
-
-        if (ws) {
-            ws.close(1008, 'Сессия отключена сервером')
-            tokenMap.delete(token)
-        }
-
-        if (tokenMap.size === 0) {
-            WebSocketController.userConnections.delete(userId)
         }
     }
 }
