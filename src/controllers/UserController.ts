@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { JWT_SECRET_KEY } from '../constants.js'
-import { UserFullInfo } from '../interfaces/User.js'
+import { UserFullInfo, UserPublicInfo } from '../interfaces/User.js'
 import { Request, Response } from 'express'
 import { UserService } from "../services/UserService.js"
 import { SessionInfo } from '../interfaces/Session.js'
@@ -80,14 +80,15 @@ export class UserController {
     profileUpdate = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
-            const data = req.body
+            const data = req.body as UserPublicInfo
 
             const user: UserFullInfo = {
                 id: userId,
                 firstName: data.firstName?.toString().trim(),
                 lastName: data.lastName?.toString().trim(),
-                username: data.username?.trim(),
-                bio: data.bio?.toString().trim()
+                username: data.username?.toString().trim(),
+                bio: data.bio?.toString().trim(),
+                dateOfBirth: data.dateOfBirth
             }
 
             await this.userService.updateUserProfile(userId, user)

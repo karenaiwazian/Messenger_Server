@@ -15,6 +15,7 @@ model User {
     username          String?             @unique
     login             String              @unique
     password          String
+    dateOfBirth       DateTime?
     ChatFolder        ChatFolder[]
     Session           Session[]
     ArchiveChat       ArchiveChat[]

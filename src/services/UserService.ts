@@ -4,11 +4,18 @@ import { prisma } from "../prisma.js"
 export class UserService {
 
     getUserById = async (chatId: number): Promise<UserPublicInfo> => {
-        return await prisma.user.findFirst({
+        const user = await prisma.user.findFirst({
             where: {
                 id: chatId
             }
-        }) as UserPublicInfo
+        })
+
+        const findedUser = {
+            ...user,
+            dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).getTime() : undefined
+        }
+
+        return findedUser as UserPublicInfo
     }
 
     getChatNameById = async (chatId: number): Promise<string | null> => {
@@ -35,6 +42,16 @@ export class UserService {
         return await prisma.user.findFirst({
             where: {
                 login: login
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                username: true,
+                bio: true,
+                login: true,
+                password: true,
+                dateOfBirth: false
             }
         }) as UserFullInfo
     }
@@ -45,11 +62,23 @@ export class UserService {
                 username: {
                     startsWith: search
                 }
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                username: true,
+                bio: true,
+                login: true,
+                password: true,
+                dateOfBirth: false
             }
         }) as UserPublicInfo[]
     }
 
     updateUserProfile = async (userId: number, user: UserPublicInfo): Promise<void> => {
+        const dateOfBirth = user?.dateOfBirth ? new Date(user.dateOfBirth) : null
+
         await prisma.user.update({
             where: {
                 id: userId
@@ -58,7 +87,8 @@ export class UserService {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 bio: user.bio,
-                username: user.username
+                username: user.username,
+                dateOfBirth: dateOfBirth
             }
         })
     }
@@ -74,12 +104,12 @@ export class UserService {
         })
     }
 
-    registerUser = async (user: { login: string, password: string }): Promise<UserFullInfo> => {
-        return await prisma.user.create({
+    registerUser = async (user: { login: string, password: string }): Promise<void> => {
+        await prisma.user.create({
             data: {
                 login: user.login,
                 password: user.password
             }
-        }) as UserFullInfo
+        })
     }
 }
