@@ -2,10 +2,13 @@ import admin from 'firebase-admin'
 import { createRequire } from "module"
 import { IncomingMessage } from "http"
 import { RawData, WebSocket, WebSocketServer } from "ws"
-import { WEBSOCKET_PORT, APP_NAME } from "./constants.js"
-import { MyWebSocket } from "./interfaces/MyWebSocket.js"
-import { Authenticate } from "./middlewares/Authentificate.js"
-import { Message } from './interfaces/Message.js'
+import { WEBSOCKET_PORT } from "../Constants.js"
+import { MyWebSocket } from "../interfaces/MyWebSocket.js"
+import { Authenticate } from "../middlewares/Authentificate.js"
+import { WebSocketActionPayload } from '../interfaces/WebSocketActionPayload.js'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 
 export class WebSocketController {
 
@@ -17,13 +20,31 @@ export class WebSocketController {
 
     constructor() {
         const requireJSON = createRequire(import.meta.url)
-        const serviceAccount = requireJSON('./config/serviceAccountKey.json')
+        const __filename = fileURLToPath(import.meta.url)
+        const __dirname = path.dirname(__filename)
+        const serviceAccountPath = path.resolve(__dirname, '../../config/serviceAccountKey.json')
 
+        const serviceAccount = requireJSON(serviceAccountPath);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         })
 
         this.webSocketServer.on('connection', this.handleConnection)
+    }
+
+    public static sendMessage = <T extends keyof WebSocketActionPayload>(
+        action: T,
+        data: WebSocketActionPayload[T],
+        userId: number
+    ) => {
+        const messageToSend = {
+            action: WebSocketAction[action].toString(),
+            data: data
+        }
+
+        const jsonMessage = JSON.stringify(messageToSend)
+
+        this.sendMessageToUser(userId, jsonMessage)
     }
 
     private handleConnection = async (webSocket: WebSocket, request: IncomingMessage) => {
@@ -79,36 +100,13 @@ export class WebSocketController {
         }
     }
 
-    public static sendMessageToChat = (message: Message) => {
-        const senderId = message.senderId
-        const chatId = message.chatId
+    private static sendMessageToUser(userId: number, message: string) {
+        const userSessions = this.userConnections.get(userId)
 
-        const messageToSend = {
-            action: 'NEW_MESSAGE',
-            data: {
-                message: message
-            }
-        }
-
-        const jsonMessage = JSON.stringify(messageToSend)
-
-        const senderSessions = this.userConnections.get(senderId)
-
-        if (senderSessions) {
-            for (const [token, clientWs] of senderSessions) {
+        if (userSessions) {
+            for (const clientWs of userSessions.values()) {
                 if (clientWs.readyState === WebSocket.OPEN) {
-                    clientWs.send(jsonMessage)
-                }
-            }
-        }
-
-        if (chatId !== senderId) {
-            const receiverSessions = this.userConnections.get(chatId)
-            if (receiverSessions) {
-                for (const [token, clientWs] of receiverSessions) {
-                    if (clientWs.readyState === WebSocket.OPEN) {
-                        clientWs.send(jsonMessage)
-                    }
+                    clientWs.send(message)
                 }
             }
         }

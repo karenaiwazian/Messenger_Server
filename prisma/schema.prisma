@@ -18,23 +18,11 @@ model User {
     dateOfBirth       DateTime?
     ChatFolder        ChatFolder[]
     Session           Session[]
-    ArchiveChat       ArchiveChat[]
-    UnarchiveChat     UnarchiveChat[]
     Channel           Channel[]
     Group             Group[]
     GroupMember       GroupMember[]
     ChannelSubscriber ChannelSubscriber[]
     PrivacySettings   PrivacySettings[]
-}
-
-model Message {
-    id              Int      @id @default(autoincrement())
-    messageId       Int
-    senderId        Int
-    chatId          Int
-    text            String
-    sendTime        DateTime @default(now())
-    deletedBySender Boolean  @default(false)
 }
 
 model Session {
@@ -49,22 +37,23 @@ model Session {
     @@unique([userId, token])
 }
 
-model ArchiveChat {
-    id       Int     @id @default(autoincrement())
-    userId   Int
-    chatId   Int
-    isPinned Boolean @default(false)
-    user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([userId, chatId])
+model Message {
+    id                Int      @id @default(autoincrement())
+    senderId          Int
+    chatId            Int
+    text              String
+    sendTime          DateTime @default(now())
+    deletedBySender   Boolean  @default(false)
+    deletedByReceiver Boolean  @default(false)
 }
 
-model UnarchiveChat {
-    id       Int     @id @default(autoincrement())
-    userId   Int
-    chatId   Int
-    isPinned Boolean @default(false)
-    user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Chat {
+    id         Int     @id @default(autoincrement())
+    userId     Int
+    chatId     Int
+    chatType   Int
+    isPinned   Boolean @default(false)
+    isArchived Boolean @default(false)
 
     @@unique([userId, chatId])
 }
@@ -81,6 +70,7 @@ model ChatFolderChats {
     id         Int        @id @default(autoincrement())
     folderId   Int
     chatId     Int
+    chatType   Int
     isPinned   Boolean    @default(false)
     chatFolder ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
@@ -126,7 +116,12 @@ model GroupMember {
 }
 
 model PrivacySettings {
-    id     Int  @id @default(autoincrement())
-    userId Int  @unique
-    user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id          Int  @id @default(autoincrement())
+    userId      Int  @unique
+    lastSeen    Int
+    messages    Int
+    bio         Int
+    dateOfBirth Int
+    invites     Int
+    user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

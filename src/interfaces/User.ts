@@ -5,7 +5,7 @@ export type UserFullInfo = {
     username?: string
     bio?: string
     login?: string
-    password?: string,
+    password?: string
     dateOfBirth?: number
 }
 
@@ -14,6 +14,6 @@ export type UserPublicInfo = {
     firstName?: string
     lastName?: string
     username?: string
-    bio?: string,
-    dateOfBirth?: number
+    bio: string
+    dateOfBirth?: number | null
 }

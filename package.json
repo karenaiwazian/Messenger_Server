@@ -1,5 +1,5 @@
 {
-  "name": "Messenger",
+  "name": "messenger",
   "version": "1.0.0",
   "type": "module",
   "author": "Karen Aiwazian",
@@ -21,10 +21,13 @@
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "ts-node": "^10.9.2",
-    "typeorm": "^0.3.25",
     "ws": "^8.18.2"
   },
   "devDependencies": {
+    "@babel/cli": "^7.24.7",
+    "@babel/core": "^7.24.7",
+    "@babel/preset-env": "^7.24.7",
+    "@babel/preset-typescript": "^7.24.7",
     "@types/node": "^24.1.0",
     "prisma": "^6.13.0",
     "typescript": "^5.8.3"

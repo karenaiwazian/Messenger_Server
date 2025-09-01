@@ -8,11 +8,18 @@ export class NotificationService {
 
     sendPushNotification = async (userId: number, token: string, chatId: number, notification: Notification) => {
         try {
-            const sessions = await this.sessionService.getSessions(userId, token)
+            var sessions
+
+            if (userId == chatId) {
+                sessions = await this.sessionService.getSessions(userId, token)
+            } else {
+                sessions = await this.sessionService.getUserSessions(chatId)
+            }
+
             const tokens = sessions.map(session => session.fcmToken).filter(token => token !== undefined)
 
             if (tokens.length === 0) {
-                console.log('Нет токенов для отправки.')
+                console.error('Нет токенов для отправки уведомлений')
                 return
             }
 
@@ -21,13 +28,13 @@ export class NotificationService {
                 data: {
                     title: notification.title,
                     body: notification.body,
-                    chatId: String(chatId),
+                    chatId: userId.toString(),
                 }
             }
 
             const response = await admin.messaging().sendEachForMulticast(message)
 
-            console.log(`Push-уведомления отправлены:`, response)
+            console.log('Push-уведомления отправлены:', response)
         } catch (error) {
             console.error('Ошибка отправки уведомлений:', error)
         }

@@ -1,14 +1,18 @@
 import { UserFullInfo, UserPublicInfo } from '../interfaces/User.js'
-import { prisma } from "../prisma.js"
+import { prisma } from "../Prisma.js"
 
 export class UserService {
 
-    getUserById = async (chatId: number): Promise<UserPublicInfo> => {
+    getUserById = async (chatId: number): Promise<UserPublicInfo | null> => {
         const user = await prisma.user.findFirst({
             where: {
                 id: chatId
             }
         })
+
+        if (!user) {
+            return null
+        }
 
         const findedUser = {
             ...user,
@@ -76,6 +80,27 @@ export class UserService {
         }) as UserPublicInfo[]
     }
 
+    checkUsername = async (username: string): Promise<boolean> => {
+        const user = await prisma.user.findFirst({
+            where: {
+                username: username
+            }
+        })
+
+        return user == null
+    }
+
+    async changeUsername(userId: number, username: string | null) {
+        await prisma.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                username: username
+            }
+        })
+    }
+
     updateUserProfile = async (userId: number, user: UserPublicInfo): Promise<void> => {
         const dateOfBirth = user?.dateOfBirth ? new Date(user.dateOfBirth) : null
 
@@ -104,12 +129,14 @@ export class UserService {
         })
     }
 
-    registerUser = async (user: { login: string, password: string }): Promise<void> => {
-        await prisma.user.create({
+    registerUser = async (user: { login: string, password: string }): Promise<number> => {
+        const registeredUser = await prisma.user.create({
             data: {
                 login: user.login,
                 password: user.password
             }
         })
+
+        return registeredUser.id
     }
 }

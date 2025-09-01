@@ -1,23 +1,31 @@
 import { ChatInfo } from "../interfaces/ChatInfo.js"
 import { ChatFolder } from "../interfaces/ChatFolder.js"
-import { prisma } from "../prisma.js"
+import { prisma } from "../Prisma.js"
 import { UserService } from "./UserService.js"
 import { ChatService } from "./ChatService.js"
+import { ChatType } from "../interfaces/ChatType.js"
 
 export class FolderService {
 
     private userService = new UserService()
     private chatService = new ChatService()
 
-    createFolder = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
-        const createdFolder = await prisma.chatFolder.create({
-            data: {
+    saveFolder = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
+        const folder = await prisma.chatFolder.upsert({
+            create: {
                 userId: chatFolder.userId,
                 folderName: chatFolder.folderName
+            },
+            update: {
+                userId: chatFolder.userId,
+                folderName: chatFolder.folderName
+            },
+            where: {
+                id: chatFolder.id
             }
         })
 
-        return createdFolder
+        return folder
     }
 
     deleteFolder = async (folderId: number): Promise<void> => {
@@ -45,15 +53,24 @@ export class FolderService {
     }
 
     addChatToFolder = async (chatId: number, folderId: number) => {
-        await prisma.chatFolderChats.create({
-            data: {
+        await prisma.chatFolderChats.upsert({
+            create: {
                 chatId: chatId,
-                folderId: folderId
+                folderId: folderId,
+                chatType: ChatType.User
+            },
+            update: {
+                chatId: chatId,
+                folderId: folderId,
+                chatType: ChatType.User
+            },
+            where: {
+                id: folderId
             }
         })
     }
 
-    getFolderChats = async (folderId: number): Promise<ChatInfo[]> => {
+    getFolderChats = async (userId: number, folderId: number): Promise<ChatInfo[]> => {
         const chats = await prisma.chatFolderChats.findMany({
             where: {
                 folderId
@@ -73,10 +90,14 @@ export class FolderService {
         const result = await Promise.all(chatPromises) as ChatInfo[]
 
         for await (const chat of result) {
-            chat.lastMessage = await this.chatService.getChatLastMessage(chat.id)
+            chat.lastMessage = await this.chatService.getChatLastMessage(userId, chat.id)
         }
 
-        return result
+        const sortedBySendTime = result.sort((a, b) => (b.lastMessage?.sendTime || 0) - (a.lastMessage?.sendTime || 0))
+
+        const sortedByPin = sortedBySendTime.sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+
+        return sortedByPin
     }
 
     deleteAllFolderChats = async (folderId: number): Promise<void> => {
@@ -87,13 +108,22 @@ export class FolderService {
         })
     }
 
-    updateFolderName = async (folderId: number, folderName: string): Promise<void> => {
-        await prisma.chatFolder.update({
-            data: {
-                folderName: folderName
-            },
+    pinChat = async (folderId: number, chatId: number) => {
+        await this.togglePinChat(folderId, chatId, true)
+    }
+
+    unpinChat = async (folderId: number, chatId: number) => {
+        await this.togglePinChat(folderId, chatId, false)
+    }
+
+    private togglePinChat = async (folderId: number, chatId: number, isPinned: boolean) => {
+        await prisma.chatFolderChats.updateMany({
             where: {
-                id: folderId
+                folderId: folderId,
+                chatId: chatId
+            },
+            data: {
+                isPinned: isPinned
             }
         })
     }

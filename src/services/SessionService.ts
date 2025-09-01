@@ -1,5 +1,5 @@
 import { SessionInfo } from '../interfaces/Session.js'
-import { prisma } from '../prisma.js'
+import { prisma } from '../Prisma.js'
 
 export class SessionService {
 

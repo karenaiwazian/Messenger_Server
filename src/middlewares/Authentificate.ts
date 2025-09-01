@@ -2,7 +2,7 @@ import jwt, { JwtPayload } from 'jsonwebtoken'
 import { NextFunction, Request, Response } from 'express'
 import { SessionService } from '../services/SessionService.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
-import { JWT_SECRET_KEY } from '../constants.js'
+import { JWT_SECRET_KEY } from '../Constants.js'
 
 export class Authenticate {
 

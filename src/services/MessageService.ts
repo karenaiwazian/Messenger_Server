@@ -1,5 +1,5 @@
 import { Message } from '../interfaces/Message.js'
-import { prisma } from '../prisma.js'
+import { prisma } from '../Prisma.js'
 
 export class MessageService {
 
@@ -9,11 +9,13 @@ export class MessageService {
                 OR: [
                     {
                         senderId: senderId,
-                        chatId: chatId
+                        chatId: chatId,
+                        deletedBySender: false
                     },
                     {
                         senderId: chatId,
-                        chatId: senderId
+                        chatId: senderId,
+                        deletedByReceiver: false
                     }
                 ]
             },
@@ -25,7 +27,6 @@ export class MessageService {
                 chatId: true,
                 senderId: true,
                 sendTime: true,
-                messageId: true,
                 text: true
             }
         })
@@ -50,45 +51,19 @@ export class MessageService {
     }
 
     addMessage = async (senderId: number, chatId: number, text: string): Promise<Message> => {
-        const lastMessageId = await prisma.message.count({
-            where: {
-                senderId: senderId,
-                chatId: chatId
-            }
-        })
-
-        const messageId = lastMessageId ? lastMessageId + 1 : 1
-
-        if (messageId == 1) {
-            await prisma.unarchiveChat.create({
-                data: {
-                    chatId: chatId,
-                    userId: senderId
-                }
-            })
-
-            if (senderId != chatId) {
-                await prisma.unarchiveChat.create({
-                    data: {
-                        chatId: senderId,
-                        userId: chatId
-                    }
-                })
-            }
-        }
-
         const createdMessage = await prisma.message.create({
             data: {
-                messageId: messageId,
                 senderId: senderId,
                 chatId: chatId,
                 text: text
             }
         })
 
-        return {
+        const sentMessage = {
             ...createdMessage,
             sendTime: createdMessage.sendTime.getTime()
-        }
+        } as Message
+
+        return sentMessage
     }
 }
