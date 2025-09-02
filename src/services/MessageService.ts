@@ -27,7 +27,8 @@ export class MessageService {
                 chatId: true,
                 senderId: true,
                 sendTime: true,
-                text: true
+                text: true,
+                isRead: true
             }
         })
 
@@ -55,7 +56,8 @@ export class MessageService {
             data: {
                 senderId: senderId,
                 chatId: chatId,
-                text: text
+                text: text,
+                isRead: senderId == chatId
             }
         })
 

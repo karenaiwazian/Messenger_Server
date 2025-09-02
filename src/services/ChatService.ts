@@ -90,6 +90,17 @@ export class ChatService {
         }
     }
 
+    async markAsRead(messageId: number) {
+        await prisma.message.update({
+            where: {
+                id: messageId
+            },
+            data: {
+                isRead: true
+            }
+        })
+    }
+
     async deleteMessage(userId: number, chatId: number, messageId: number, deleteForAll: boolean): Promise<Message | null> {
         const deletedMessage = await prisma.message.findFirst({
             where: {

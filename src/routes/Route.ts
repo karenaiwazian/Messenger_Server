@@ -60,8 +60,9 @@ export const createApiRouter = (): Router => {
     router.delete('/chat/:id/pin', authenticate, wrap(chatController.unpinChat))
     router.get('/chat/:id/messages', authenticate, wrap(messageController.getChatMessages))
     router.post('/message', authenticate, wrap(messageController.sendMessage))
-    router.delete('/chat/:chatId/message/:messageId', authenticate, wrap(chatController.deleteMessage))
+    router.delete('/chat/:chatId/messages/:messageId', authenticate, wrap(chatController.deleteMessage))
     router.get('/chat/:chatId/messages/last', authenticate, wrap(chatController.getChatLastMessage))
+    router.patch('/chat/:chatId/messages/:messageId/read', authenticate, wrap(chatController.markAsReadMessage))
 
     // session
     router.post('/updateFcmToken', authenticate, wrap(sessionController.updateFcmToken))

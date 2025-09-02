@@ -43,6 +43,7 @@ model Message {
     chatId            Int
     text              String
     sendTime          DateTime @default(now())
+    isRead            Boolean  @default(false)
     deletedBySender   Boolean  @default(false)
     deletedByReceiver Boolean  @default(false)
 }

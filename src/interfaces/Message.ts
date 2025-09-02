@@ -4,4 +4,5 @@ export type Message = {
     chatId: number
     text: string
     sendTime: number
+    isRead: boolean
 }

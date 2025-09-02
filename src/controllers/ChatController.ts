@@ -7,6 +7,7 @@ import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 import { DeleteChatPayload } from '../interfaces/DeleteChatPayload.js'
 import { WebSocketController } from './WebSocketController.js'
 import { DeleteMessagePayload } from '../interfaces/DeleteMessagePayload.js'
+import { ReadMessagePayload } from '../interfaces/ReadMessagePayload.js'
 
 export class ChatController {
 
@@ -152,6 +153,30 @@ export class ChatController {
         } catch (error) {
             res.status(400).json(ApiReponse.Error("Ошибка при получении последнего сообщения чата"))
             console.error("Ошибка при получении последнего сообщения чата", error)
+        }
+    }
+
+    markAsReadMessage = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const userId = req.user.id
+
+            const chatId = parseInt(req.params.chatId)
+
+            const messageId = parseInt(req.params.messageId)
+
+            await this.chatService.markAsRead(messageId)
+
+            const readMessagePayload = {
+                chatId: userId,
+                messageId: messageId
+            } as ReadMessagePayload
+
+            WebSocketController.sendMessage(WebSocketAction.READ_MESSAGE, readMessagePayload, chatId)
+
+            res.status(200).json(ApiReponse.Success())
+        } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при прочтении сообщения"))
+            console.error("Ошибка при прочтении сообщения", error)
         }
     }
 
