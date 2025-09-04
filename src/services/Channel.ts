@@ -1,13 +1,13 @@
 import { prisma } from "../Prisma.js"
 import { ChannelInfo } from "../interfaces/ChannelInfo.js"
 
-export class ChannelService {
+export class Channel {
 
-    createChannel = async (channelInfo: ChannelInfo) => {
+    create = async (channelInfo: ChannelInfo) => {
         await prisma.channel.create({ data: channelInfo })
     }
 
-    removeChannel = async (channelId: number) => {
+    remove = async (channelId: number) => {
         await prisma.channel.delete({
             where: {
                 id: channelId

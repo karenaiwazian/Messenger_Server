@@ -3,30 +3,30 @@ import { ChatInfo } from "../interfaces/ChatInfo.js"
 import { Message } from "../interfaces/Message.js"
 import { ChatType } from "../interfaces/ChatType.js"
 
-export class ChatService {
+export class Chat {
 
     getAllChats = async (userId: number): Promise<ChatInfo[]> => {
-        const unarchiveChats = await this.getUnarchivedChats(userId)
-        const archiveChatss = await this.getArchivedChats(userId)
+        const unarchiveChats = await this.getUnarchived(userId)
+        const archiveChatss = await this.getArchived(userId)
 
         const allChats = unarchiveChats.concat(archiveChatss)
 
         return allChats
     }
 
-    getUnarchivedChats = async (userId: number): Promise<Array<ChatInfo>> => {
+    getUnarchived = async (userId: number): Promise<Array<ChatInfo>> => {
         const unarchiveChats = await this.getChats(userId)
 
         return unarchiveChats
     }
 
-    getArchivedChats = async (userId: number): Promise<ChatInfo[]> => {
+    getArchived = async (userId: number): Promise<ChatInfo[]> => {
         const archiveChats = await this.getChats(userId, true)
 
         return archiveChats
     }
 
-    async createChat(userId: number, chatId: number, chatType: ChatType) {
+    async create(userId: number, chatId: number, chatType: ChatType) {
         await prisma.chat.upsert({
             where: {
                 userId_chatId: {
@@ -45,23 +45,23 @@ export class ChatService {
         })
     }
 
-    addChatToArchive = async (userId: number, chatId: number): Promise<any> => {
-        await this.toggleArchiveChat(userId, chatId, true)
+    addToArchive = async (userId: number, chatId: number): Promise<any> => {
+        await this.toggleArchive(userId, chatId, true)
     }
 
-    deleteChatFromArchive = async (userId: number, chatId: number): Promise<void> => {
-        await this.toggleArchiveChat(userId, chatId, false)
+    deleteFromArchive = async (userId: number, chatId: number): Promise<void> => {
+        await this.toggleArchive(userId, chatId, false)
     }
 
-    pinChat = async (userId: number, chatId: number): Promise<void> => {
-        await this.togglePinChat(userId, chatId, true)
+    pin = async (userId: number, chatId: number): Promise<void> => {
+        await this.togglePin(userId, chatId, true)
     }
 
-    unpinChat = async (userId: number, chatId: number): Promise<void> => {
-        await this.togglePinChat(userId, chatId, false)
+    unpin = async (userId: number, chatId: number): Promise<void> => {
+        await this.togglePin(userId, chatId, false)
     }
 
-    async getChatLastMessage(senderId: number, chatId: number): Promise<Message | null> {
+    async getLastMessage(senderId: number, chatId: number): Promise<Message | null> {
         const lastMessage = await prisma.message.findFirst({
             where: {
                 OR: [
@@ -176,7 +176,7 @@ export class ChatService {
         return null
     }
 
-    async deleteChat(userId: number, chatId: number, deleteForReceiver: boolean): Promise<void> {
+    async delete(userId: number, chatId: number, deleteForReceiver: boolean): Promise<void> {
         if (deleteForReceiver) {
             await prisma.message.deleteMany({
                 where: {
@@ -215,7 +215,7 @@ export class ChatService {
         }
     }
 
-    getChatInfo = async (userId: number, chatId: number): Promise<ChatInfo | null> => {
+    getInfo = async (userId: number, chatId: number): Promise<ChatInfo | null> => {
         const chat = await prisma.user.findFirst({
             where: {
                 id: chatId
@@ -233,7 +233,7 @@ export class ChatService {
         const chatInfo = {
             id: chatId,
             chatName: `${chat.firstName} ${chat.lastName}`,
-            lastMessage: await this.getChatLastMessage(userId, chatId),
+            lastMessage: await this.getLastMessage(userId, chatId),
             chatType: ChatType.User
         } as ChatInfo
 
@@ -255,7 +255,7 @@ export class ChatService {
         const userChats = new Array<ChatInfo>
 
         for await (const chat of chats) {
-            const chatInfo = await this.getChatInfo(userId, chat.chatId)
+            const chatInfo = await this.getInfo(userId, chat.chatId)
 
             if (chatInfo == null) {
                 continue
@@ -272,7 +272,7 @@ export class ChatService {
         return sortedByPin
     }
 
-    private async togglePinChat(userId: number, chatId: number, isPinned: boolean): Promise<void> {
+    private async togglePin(userId: number, chatId: number, isPinned: boolean): Promise<void> {
         await prisma.chat.updateMany({
             where: {
                 userId: userId,
@@ -284,7 +284,7 @@ export class ChatService {
         })
     }
 
-    private async toggleArchiveChat(userId: number, chatId: number, isArchived: boolean): Promise<void> {
+    private async toggleArchive(userId: number, chatId: number, isArchived: boolean): Promise<void> {
         await prisma.chat.updateMany({
             where: {
                 userId: userId,

@@ -2,23 +2,23 @@ import jwt from 'jsonwebtoken'
 import { APP_NAME, JWT_SECRET_KEY } from '../Constants.js'
 import { UserPublicInfo } from '../interfaces/User.js'
 import { Request, Response } from 'express'
-import { UserService } from "../services/UserService.js"
+import { User as UserService } from "../services/User.js"
 import { SessionInfo } from '../interfaces/Session.js'
-import { SessionService } from '../services/SessionService.js'
+import { Session as SessionService } from '../services/Session.js'
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
 import { CryptoService } from '../utils/CryptoService.js'
-import { PrivacyService } from '../services/PrivacyService.js'
+import { Privacy as PrivacyService } from '../services/Privacy.js'
 import { PrivacyLevel } from '../interfaces/PrivacyLevel.js'
-import { MessageService } from '../services/MessageService.js'
-import { ChatService } from '../services/ChatService.js'
+import { Message as MessageService } from '../services/Message.js'
+import { Chat as ChatService } from '../services/Chat.js'
 import { ChatType } from '../interfaces/ChatType.js'
 import { WebSocketController } from './WebSocketController.js'
 import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 import { Notification } from '../interfaces/Notification.js'
-import { NotificationService } from '../services/NotificationService.js'
+import { Notification as NotificationService } from '../services/Notification.js'
 
-export class UserController {
+export class User {
 
     private userService = new UserService()
     private sessionService = new SessionService()
@@ -28,17 +28,17 @@ export class UserController {
     private chatService = new ChatService()
     private notificationService = new NotificationService()
 
-    getUserById = async (req: AuthenticatedRequest, res: Response) => {
+    getById = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const id = parseInt(req.params.id)
 
-            const user = await this.userService.getUserById(id)
+            const user = await this.userService.getById(id)
 
             if (!user) {
                 return res.status(404).json(ApiReponse.Error("Пользователь не найден"))
             }
 
-            const privacy = await this.privacyService.getUserPrivacy(id)
+            const privacy = await this.privacyService.getUser(id)
 
             if (privacy?.bio == PrivacyLevel.Nobody) {
                 user.bio = ""
@@ -59,10 +59,10 @@ export class UserController {
         try {
             const id = req.user.id
 
-            const user = await this.userService.getUserById(id)
+            const user = await this.userService.getById(id)
 
             if (user) {
-                res.json(user)
+                res.status(200).json(user)
             } else {
                 res.status(404).json({ message: "User not found" })
             }
@@ -78,7 +78,7 @@ export class UserController {
 
             const users = await this.userService.searchUsers(search)
 
-            res.json(users)
+            res.status(200).json(users)
         } catch (error) {
             console.error("Не удалось найти пользователя " + error)
             res.status(500).json(ApiReponse.Error("Не удалось найти пользователя"))
@@ -107,7 +107,7 @@ export class UserController {
             const login = req.params.login
             const validLogin = login.trim()
 
-            const user = await this.userService.getUserByLogin(validLogin)
+            const user = await this.userService.getByLogin(validLogin)
 
             if (!user) {
                 console.log('Пользователь не найден по логину')
@@ -137,8 +137,9 @@ export class UserController {
                 dateOfBirth: data.dateOfBirth
             }
 
-            await this.userService.updateUserProfile(userId, user)
-            res.json(ApiReponse.Success())
+            await this.userService.updateProfile(userId, user)
+
+            res.status(200).json(ApiReponse.Success())
         } catch (error) {
             console.error('Ошибка при обновлении профиля:', error)
             res.status(500).json(ApiReponse.Error("Не удалось обновить профиль"))
@@ -166,9 +167,9 @@ export class UserController {
 
                 const text = "Облачный пароль был изменен"
 
-                const sentMessage = await this.messageService.addMessage(0, userId, text)
+                const sentMessage = await this.messageService.add(0, userId, text)
 
-                await this.chatService.createChat(userId, systemChatId, ChatType.User)
+                await this.chatService.create(userId, systemChatId, ChatType.User)
 
                 WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, sentMessage, userId)
 
@@ -177,7 +178,7 @@ export class UserController {
                     body: text
                 }
 
-                await this.notificationService.sendPushNotification(systemChatId, token, userId, notification)
+                await this.notificationService.sendPush(systemChatId, token, userId, notification)
             } catch (error) {
                 console.error("Не удалось отправить сообщение об изменении облачного пароля ", error)
             }
@@ -240,7 +241,7 @@ export class UserController {
             const validPassword = password.trim()
             const validDeviceName = deviceName.trim()
 
-            const user = await this.userService.getUserByLogin(validLogin)
+            const user = await this.userService.getByLogin(validLogin)
 
             if (!user.password) {
                 res.status(400).json(ApiReponse.Error(""))
@@ -260,7 +261,7 @@ export class UserController {
                     createdAt: new Date(),
                 }
 
-                const addedSession = await this.sessionService.addSession(sessionInfo)
+                const addedSession = await this.sessionService.add(sessionInfo)
 
                 res.status(200).json(ApiReponse.Success(addedSession.token))
             } else {
@@ -298,9 +299,9 @@ export class UserController {
                 password: hash,
             }
 
-            const registeredUserId = await this.userService.registerUser(registerInfo)
+            const registeredUserId = await this.userService.register(registerInfo)
 
-            await this.privacyService.initUserPrivacy(registeredUserId)
+            await this.privacyService.initUser(registeredUserId)
 
             res.status(200).json(ApiReponse.Success())
             console.log('Пользователь зарегистрирован')
@@ -314,12 +315,12 @@ export class UserController {
         try {
             const token = req.user.token
 
-            await this.sessionService.terminateSessionByToken(token)
+            await this.sessionService.terminateByToken(token)
 
-            res.json(ApiReponse.Success())
+            res.status(200).json(ApiReponse.Success())
         } catch (error) {
+            res.status(400).json(ApiReponse.Error("Не удалось выйти из аккаунта"))
             console.error("Не удалось выйти из аккаунта " + error)
-            res.json(ApiReponse.Error("Не удалось выйти из аккаунта"))
         }
     }
 }

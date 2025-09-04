@@ -1,9 +1,9 @@
 import { Response } from 'express'
-import { SessionService } from '../services/SessionService.js'
+import { Session as SessionService } from '../services/Session.js'
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
 
-export class SessionController {
+export class Session {
 
     private sessionService = new SessionService()
 
@@ -23,12 +23,12 @@ export class SessionController {
         }
     }
 
-    terminateAllSessions = async (req: AuthenticatedRequest, res: Response) => {
+    terminateAll = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
             const token = req.user.token
 
-            await this.sessionService.termitateAllSessions(userId, token)
+            await this.sessionService.termitateAll(userId, token)
 
             res.status(200).json({ success: true, message: 'All sessions terminated' })
         } catch (err) {
@@ -36,13 +36,15 @@ export class SessionController {
         }
     }
 
-    terminateSession = async (req: AuthenticatedRequest, res: Response) => {
+    terminate = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const sessionId = parseInt(req.params.id)
-            this.sessionService.terminateSessionById(sessionId)
-            res.json(ApiReponse.Success())
+
+            this.sessionService.terminateById(sessionId)
+
+            res.status(200).json(ApiReponse.Success())
         } catch (error) {
-            res.json(ApiReponse.Error("Error terminating session"))
+            res.status(400).json(ApiReponse.Error("Error terminating session"))
         }
     }
 
@@ -52,7 +54,7 @@ export class SessionController {
 
             const count = await this.sessionService.getSessionCount(userId)
 
-            res.json(count)
+            res.status(200).json(count)
         } catch (err) {
             res.status(500).json({ success: false, message: 'Error fetching device count' })
         }
@@ -64,7 +66,8 @@ export class SessionController {
             const token = req.user.token
 
             const sessions = await this.sessionService.getSessions(userId, token)
-            res.json(sessions)
+
+            res.status(200).json(sessions)
         } catch (err) {
             res.status(500).json({ success: false, message: 'Error fetching sessions' })
         }

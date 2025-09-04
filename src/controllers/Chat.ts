@@ -1,24 +1,23 @@
 import { Response } from 'express'
-import { ChatService } from "../services/ChatService.js"
+import { Chat as ChatService } from "../services/Chat.js"
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
-import { ChatInfo } from '../interfaces/ChatInfo.js'
 import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 import { DeleteChatPayload } from '../interfaces/DeleteChatPayload.js'
 import { WebSocketController } from './WebSocketController.js'
 import { DeleteMessagePayload } from '../interfaces/DeleteMessagePayload.js'
 import { ReadMessagePayload } from '../interfaces/ReadMessagePayload.js'
 
-export class ChatController {
+export class Chat {
 
     private chatService = new ChatService()
 
-    getChatInfo = async (req: AuthenticatedRequest, res: Response) => {
+    getInfo = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
             const chatId = parseInt(req.params.id)
 
-            const chatInfo = await this.chatService.getChatInfo(userId, chatId)
+            const chatInfo = await this.chatService.getInfo(userId, chatId)
 
             if (chatInfo == null) {
                 console.error(`Чат ${chatId} не найден`)
@@ -44,11 +43,11 @@ export class ChatController {
         }
     }
 
-    getUnarchivedChats = async (req: AuthenticatedRequest, res: Response) => {
+    getUnarchived = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
-            const chats = await this.chatService.getUnarchivedChats(userId)
+            const chats = await this.chatService.getUnarchived(userId)
 
             res.json(chats)
         } catch (error) {
@@ -57,11 +56,11 @@ export class ChatController {
         }
     }
 
-    getArchivedChats = async (req: AuthenticatedRequest, res: Response) => {
+    getArchived = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
-            const chats = await this.chatService.getArchivedChats(userId)
+            const chats = await this.chatService.getArchived(userId)
 
             res.json(chats)
         } catch (error) {
@@ -70,13 +69,13 @@ export class ChatController {
         }
     }
 
-    addChatToArchive = async (req: AuthenticatedRequest, res: Response) => {
+    addToArchive = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
             const chatId = parseInt(req.params.id)
 
-            await this.chatService.addChatToArchive(userId, chatId)
+            await this.chatService.addToArchive(userId, chatId)
 
             res.json(ApiReponse.Success())
         } catch {
@@ -84,13 +83,13 @@ export class ChatController {
         }
     }
 
-    deleteChatFromArchive = async (req: AuthenticatedRequest, res: Response) => {
+    deleteFromArchive = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
             const chatId = parseInt(req.params.id)
 
-            await this.chatService.deleteChatFromArchive(userId, chatId)
+            await this.chatService.deleteFromArchive(userId, chatId)
 
             res.json(ApiReponse.Success())
         } catch {
@@ -98,7 +97,7 @@ export class ChatController {
         }
     }
 
-    pinChat = async (req: AuthenticatedRequest, res: Response) => {
+    pin = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
@@ -108,7 +107,7 @@ export class ChatController {
                 return res.status(400).json({ error: 'Chat ID is required' })
             }
 
-            await this.chatService.pinChat(userId, chatId)
+            await this.chatService.pin(userId, chatId)
 
             res.status(200).json({ success: true, message: 'Chat pinned successfully' })
         } catch (error) {
@@ -117,7 +116,7 @@ export class ChatController {
         }
     }
 
-    unpinChat = async (req: AuthenticatedRequest, res: Response) => {
+    unpin = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
@@ -127,7 +126,7 @@ export class ChatController {
                 return res.status(400).json({ error: 'Chat ID is required' })
             }
 
-            await this.chatService.unpinChat(userId, chatId)
+            await this.chatService.unpin(userId, chatId)
 
             res.status(200).json({ success: true, message: 'Chat unpinned successfully' })
         }
@@ -137,13 +136,13 @@ export class ChatController {
         }
     }
 
-    getChatLastMessage = async (req: AuthenticatedRequest, res: Response) => {
+    getLastMessage = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
             const chatId = parseInt(req.params.chatId)
 
-            const lastMessage = await this.chatService.getChatLastMessage(userId, chatId)
+            const lastMessage = await this.chatService.getLastMessage(userId, chatId)
 
             if (lastMessage == null) {
                 return res.status(400).json(null)
@@ -166,10 +165,10 @@ export class ChatController {
 
             await this.chatService.markAsRead(messageId)
 
-            const readMessagePayload = {
+            const readMessagePayload: ReadMessagePayload = {
                 chatId: userId,
                 messageId: messageId
-            } as ReadMessagePayload
+            }
 
             WebSocketController.sendMessage(WebSocketAction.READ_MESSAGE, readMessagePayload, chatId)
 
@@ -210,13 +209,13 @@ export class ChatController {
         }
     }
 
-    deleteChat = async (req: AuthenticatedRequest, res: Response) => {
+    delete = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
             const chatId = parseInt(req.params.id)
             const deleteForReceiver = req.query.deleteForReceiver?.toString().trim() === "true"
 
-            await this.chatService.deleteChat(userId, chatId, deleteForReceiver)
+            await this.chatService.delete(userId, chatId, deleteForReceiver)
 
             if (deleteForReceiver) {
                 const payload: DeleteChatPayload = {

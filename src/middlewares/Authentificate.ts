@@ -1,6 +1,6 @@
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import { NextFunction, Request, Response } from 'express'
-import { SessionService } from '../services/SessionService.js'
+import { Session as SessionService } from '../services/Session.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
 import { JWT_SECRET_KEY } from '../Constants.js'
 
@@ -40,7 +40,7 @@ export class Authenticate {
     verify = async (token: string) => {
         const payload = jwt.verify(token, JWT_SECRET_KEY!) as JwtPayload
         const userId: number = payload.id
-        const isVerify = await this.sessionService.hasSession(userId, token)
+        const isVerify = await this.sessionService.has(userId, token)
 
         return {
             isVerify: isVerify,

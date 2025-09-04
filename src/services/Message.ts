@@ -1,9 +1,9 @@
-import { Message } from '../interfaces/Message.js'
+import { Message as MessagePayload } from '../interfaces/Message.js'
 import { prisma } from '../Prisma.js'
 
-export class MessageService {
+export class Message {
 
-    getChatMessages = async (senderId: number, chatId: number): Promise<Message[]> => {
+    getInChat = async (senderId: number, chatId: number): Promise<MessagePayload[]> => {
         const messages = await prisma.message.findMany({
             where: {
                 OR: [
@@ -32,7 +32,7 @@ export class MessageService {
             }
         })
 
-        const formattedMessages: Message[] = messages.map(message => {
+        const formattedMessages: MessagePayload[] = messages.map(message => {
             return {
                 ...message,
                 sendTime: message.sendTime.getTime()
@@ -42,7 +42,7 @@ export class MessageService {
         return formattedMessages
     }
 
-    deleteAllMessagesInChat = async (senderId: number, receiverId: number): Promise<void> => {
+    deleteAllInChat = async (senderId: number, receiverId: number): Promise<void> => {
         await prisma.message.deleteMany({
             where: {
                 senderId: senderId,
@@ -51,7 +51,7 @@ export class MessageService {
         })
     }
 
-    addMessage = async (senderId: number, chatId: number, text: string): Promise<Message> => {
+    add = async (senderId: number, chatId: number, text: string): Promise<MessagePayload> => {
         const createdMessage = await prisma.message.create({
             data: {
                 senderId: senderId,
@@ -61,10 +61,10 @@ export class MessageService {
             }
         })
 
-        const sentMessage = {
+        const sentMessage: MessagePayload = {
             ...createdMessage,
             sendTime: createdMessage.sendTime.getTime()
-        } as Message
+        }
 
         return sentMessage
     }

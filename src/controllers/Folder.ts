@@ -1,10 +1,10 @@
 import { Response } from "express"
-import { FolderService } from "../services/FolderService.js"
+import { Folder as FolderService } from "../services/Folder.js"
 import { AuthenticatedRequest } from "../interfaces/AuthenticatedRequest.js"
 import { ApiReponse } from "../interfaces/ApiResponse.js"
 import { ChatFolder } from "../interfaces/ChatFolder.js"
 
-export class FolderController {
+export class Folder {
 
     private folderService = new FolderService()
 
@@ -25,7 +25,7 @@ export class FolderController {
         }
     }
 
-    getFolderChats = async (req: AuthenticatedRequest, res: Response) => {
+    getChats = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
             const folderId = parseInt(req.params.id)
@@ -38,13 +38,13 @@ export class FolderController {
         }
     }
 
-    saveFolder = async (req: AuthenticatedRequest, res: Response) => {
+    save = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
             const folder = req.body as ChatFolder
             folder.userId = userId
 
-            const savedFolder = await this.folderService.saveFolder(folder)
+            const savedFolder = await this.folderService.save(folder)
             folder.id = savedFolder.id
 
             if (folder.chats) {
@@ -62,11 +62,11 @@ export class FolderController {
         }
     }
 
-    deleteFolder = async (req: AuthenticatedRequest, res: Response) => {
+    delete = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const folderId = parseInt(req.params.id)
 
-            await this.folderService.deleteFolder(folderId)
+            await this.folderService.delete(folderId)
 
             res.json(ApiReponse.Success())
         } catch (error) {

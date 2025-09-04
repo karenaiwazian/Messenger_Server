@@ -1,17 +1,17 @@
 import { Response } from "express"
 import { AuthenticatedRequest } from "../interfaces/AuthenticatedRequest.js"
-import { PrivacyService } from "../services/PrivacyService.js"
+import { Privacy as PrivacyService } from "../services/Privacy.js"
 import { ApiReponse } from "../interfaces/ApiResponse.js"
 
-export class PrivacyController {
+export class Privacy {
 
     private privacyService = new PrivacyService()
 
-    getMyPrivacy = async (req: AuthenticatedRequest, res: Response) => {
+    getMy = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
 
-            const privacy = await this.privacyService.getUserPrivacy(userId)
+            const privacy = await this.privacyService.getUser(userId)
 
             if (privacy == null) {
                 return res.status(404).json(ApiReponse.Error("Нет настроек конфиденциальности для пользователя"))

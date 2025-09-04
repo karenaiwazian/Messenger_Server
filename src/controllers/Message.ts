@@ -1,29 +1,29 @@
 import { Response } from 'express'
-import { MessageService } from '../services/MessageService.js'
+import { Message as MessageService } from '../services/Message.js'
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
-import { Message } from '../interfaces/Message.js'
+import { Message as MessagePayload } from '../interfaces/Message.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
-import { NotificationService } from '../services/NotificationService.js'
+import { Notification as NotificationService } from '../services/Notification.js'
 import { Notification } from '../interfaces/Notification.js'
-import { UserService } from '../services/UserService.js'
+import { User as UserService } from '../services/User.js'
 import { APP_NAME } from '../Constants.js'
 import { WebSocketController } from './WebSocketController.js'
-import { ChatService } from '../services/ChatService.js'
+import { Chat as ChatService } from '../services/Chat.js'
 import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 import { ChatType } from '../interfaces/ChatType.js'
 
-export class MessageController {
+export class Message {
 
     private userService = new UserService()
     private chatService = new ChatService()
     private messageService = new MessageService()
     private notificationService = new NotificationService()
 
-    sendMessage = async (req: AuthenticatedRequest, res: Response) => {
+    send = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const token = req.user.token
             const userId = req.user.id
-            const message = req.body as Message
+            const message = req.body as MessagePayload
             const chatId = message.chatId
             const messageText = message.text
 
@@ -38,13 +38,13 @@ export class MessageController {
             for (let i = 0; i < messageParts.length; i++) {
                 const partText = messageParts[i].trim()
 
-                const sentMessage = await this.messageService.addMessage(userId, chatId, partText)
+                const sentMessage = await this.messageService.add(userId, chatId, partText)
 
                 try {
-                    await this.chatService.createChat(userId, chatId, ChatType.User)
+                    await this.chatService.create(userId, chatId, ChatType.User)
 
                     if (userId != chatId) {
-                        await this.chatService.createChat(chatId, userId, ChatType.User)
+                        await this.chatService.create(chatId, userId, ChatType.User)
                     }
                 } catch (error) {
                     console.error("Ошибка при добавлении чата", error)
@@ -60,7 +60,7 @@ export class MessageController {
                         body: partText
                     }
 
-                    await this.notificationService.sendPushNotification(userId, token, chatId, notification)
+                    await this.notificationService.sendPush(userId, token, chatId, notification)
                 }
 
                 res.status(200).json(sentMessage)
@@ -77,7 +77,7 @@ export class MessageController {
 
             const chatId = parseInt(req.params.id)
 
-            const messages = await this.messageService.getChatMessages(userId, chatId)
+            const messages = await this.messageService.getInChat(userId, chatId)
 
             res.json(messages)
         } catch (error) {
@@ -92,7 +92,7 @@ export class MessageController {
 
             const chatId = parseInt(req.params.id)
 
-            await this.messageService.deleteAllMessagesInChat(userId, chatId)
+            await this.messageService.deleteAllInChat(userId, chatId)
 
             res.status(200).json({ success: true })
         } catch (error) {

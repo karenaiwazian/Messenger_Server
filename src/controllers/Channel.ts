@@ -2,13 +2,11 @@ import { Response } from "express"
 import { ApiReponse } from "../interfaces/ApiResponse.js"
 import { AuthenticatedRequest } from "../interfaces/AuthenticatedRequest.js"
 import { ChannelInfo } from "../interfaces/ChannelInfo.js"
-import { ChannelService } from "../services/ChannelService.js"
-import { ChatService } from "../services/ChatService.js"
+import { Channel as ChannelService } from "../services/Channel.js"
 
-export class ChannelController {
+export class Channel {
 
     private channelService = new ChannelService()
-    private chatService = new ChatService()
 
     createChannel = async (req: AuthenticatedRequest, res: Response) => {
         try {
@@ -17,7 +15,7 @@ export class ChannelController {
 
             channelInfo.userId = userId
 
-            await this.channelService.createChannel(channelInfo)
+            await this.channelService.create(channelInfo)
 
             res.status(200).json(ApiReponse.Success)
         } catch (error) {
@@ -30,7 +28,7 @@ export class ChannelController {
         try {
             const channelId = parseInt(req.params.id)
 
-            await this.channelService.removeChannel(channelId)
+            await this.channelService.remove(channelId)
 
             res.status(200).json(ApiReponse.Success())
         } catch (error) {

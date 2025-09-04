@@ -1,9 +1,9 @@
 import { UserFullInfo, UserPublicInfo } from '../interfaces/User.js'
 import { prisma } from "../Prisma.js"
 
-export class UserService {
+export class User {
 
-    getUserById = async (chatId: number): Promise<UserPublicInfo | null> => {
+    getById = async (chatId: number): Promise<UserPublicInfo | null> => {
         const user = await prisma.user.findFirst({
             where: {
                 id: chatId
@@ -42,7 +42,7 @@ export class UserService {
         return chatName
     }
 
-    getUserByLogin = async (login: string): Promise<UserFullInfo> => {
+    getByLogin = async (login: string): Promise<UserFullInfo> => {
         return await prisma.user.findFirst({
             where: {
                 login: login
@@ -101,7 +101,7 @@ export class UserService {
         })
     }
 
-    updateUserProfile = async (userId: number, user: UserPublicInfo): Promise<void> => {
+    updateProfile = async (userId: number, user: UserPublicInfo): Promise<void> => {
         const dateOfBirth = user?.dateOfBirth ? new Date(user.dateOfBirth) : null
 
         await prisma.user.update({
@@ -129,7 +129,7 @@ export class UserService {
         })
     }
 
-    registerUser = async (user: { login: string, password: string }): Promise<number> => {
+    register = async (user: { login: string, password: string }): Promise<number> => {
         const registeredUser = await prisma.user.create({
             data: {
                 login: user.login,

@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { UserController } from "../controllers/UserController.js"
+import { User as UserController } from "../controllers/User.js"
 
 export const createAuthRouter = (): Router => {
     const userController = new UserController()

@@ -2,9 +2,9 @@ import { prisma } from "../Prisma.js"
 import { PrivacyLevel } from "../interfaces/PrivacyLevel.js"
 import { PrivacySettings } from "../interfaces/PrivacySettings.js"
 
-export class PrivacyService {
+export class Privacy {
 
-    initUserPrivacy = async (userId: number) => {
+    initUser = async (userId: number) => {
         const defaultValue = PrivacyLevel.Everybody
 
         await prisma.privacySettings.create({
@@ -19,7 +19,7 @@ export class PrivacyService {
         })
     }
 
-    getUserPrivacy = async (userId: number): Promise<PrivacySettings | null> => {
+    getUser = async (userId: number): Promise<PrivacySettings | null> => {
         const userPrivacy = await prisma.privacySettings.findFirst({
             where: {
                 userId: userId

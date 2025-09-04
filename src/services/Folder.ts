@@ -1,16 +1,16 @@
 import { ChatInfo } from "../interfaces/ChatInfo.js"
 import { ChatFolder } from "../interfaces/ChatFolder.js"
 import { prisma } from "../Prisma.js"
-import { UserService } from "./UserService.js"
-import { ChatService } from "./ChatService.js"
+import { User as UserService } from "./User.js"
+import { Chat as ChatService } from "./Chat.js"
 import { ChatType } from "../interfaces/ChatType.js"
 
-export class FolderService {
+export class Folder {
 
     private userService = new UserService()
     private chatService = new ChatService()
 
-    saveFolder = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
+    save = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
         const folder = await prisma.chatFolder.upsert({
             create: {
                 userId: chatFolder.userId,
@@ -28,7 +28,7 @@ export class FolderService {
         return folder
     }
 
-    deleteFolder = async (folderId: number): Promise<void> => {
+    delete = async (folderId: number): Promise<void> => {
         await prisma.chatFolder.delete({
             where: {
                 id: folderId
@@ -90,7 +90,7 @@ export class FolderService {
         const result = await Promise.all(chatPromises) as ChatInfo[]
 
         for await (const chat of result) {
-            chat.lastMessage = await this.chatService.getChatLastMessage(userId, chat.id)
+            chat.lastMessage = await this.chatService.getLastMessage(userId, chat.id)
         }
 
         const sortedBySendTime = result.sort((a, b) => (b.lastMessage?.sendTime || 0) - (a.lastMessage?.sendTime || 0))
