@@ -42,6 +42,38 @@ export class MessageService {
         return formattedMessages
     }
 
+    getChannelMessages = async (channelId: number) => {
+        const messages = await prisma.message.findMany({
+            where: {
+                OR: [
+                    {
+                        chatId: channelId,
+                    }
+                ]
+            },
+            orderBy: {
+                sendTime: 'asc'
+            },
+            select: {
+                id: true,
+                chatId: true,
+                senderId: true,
+                sendTime: true,
+                text: true,
+                isRead: true
+            }
+        })
+
+        const formattedMessages: Message[] = messages.map(message => {
+            return {
+                ...message,
+                sendTime: message.sendTime.getTime()
+            }
+        })
+
+        return formattedMessages
+    }
+
     deleteAllMessagesInChat = async (senderId: number, receiverId: number): Promise<void> => {
         await prisma.message.deleteMany({
             where: {

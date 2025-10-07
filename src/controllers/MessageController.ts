@@ -10,12 +10,14 @@ import { APP_NAME } from '../Constants.js'
 import { WebSocketController } from './WebSocketController.js'
 import { ChatService } from '../services/ChatService.js'
 import { WebSocketAction } from '../interfaces/WebSocketAction.js'
-import { ChatType } from '../interfaces/ChatType.js'
+import { ChatType } from '../enums/ChatType.js'
+import { ChannelService } from '../services/ChannelService.js'
 
 export class MessageController {
 
     private userService = new UserService()
     private chatService = new ChatService()
+    private channelService = new ChannelService()
     private messageService = new MessageService()
     private notificationService = new NotificationService()
 
@@ -40,14 +42,34 @@ export class MessageController {
 
                 const sentMessage = await this.messageService.addMessage(userId, chatId, partText)
 
-                try {
-                    await this.chatService.createChat(userId, chatId, ChatType.User)
+                if (chatId > 0) {
+                    try {
+                        await this.chatService.createChat(userId, chatId, ChatType.PRIVATE)
 
-                    if (userId != chatId) {
-                        await this.chatService.createChat(chatId, userId, ChatType.User)
+                        if (userId != chatId) {
+                            await this.chatService.createChat(chatId, userId, ChatType.PRIVATE)
+                        }
+                    } catch (error) {
+                        console.error("Ошибка при добавлении чата", error)
                     }
-                } catch (error) {
-                    console.error("Ошибка при добавлении чата", error)
+                } else {
+                    const subscribers = await this.channelService.getSubscribers(Math.abs(chatId))
+
+                    subscribers.forEach(subscriber => {
+                        const channelMessage = sentMessage
+                        channelMessage.senderId = sentMessage.chatId
+
+                        WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, sentMessage, subscriber)
+                    })
+
+                    const senderName = await this.userService.getChatNameById(message.senderId)
+
+                    const notification: Notification = {
+                        title: senderName || APP_NAME,
+                        body: partText
+                    }
+
+                    await this.notificationService.sendPushNotification(userId, token, chatId, notification)
                 }
 
                 if (chatId != userId) {
@@ -77,7 +99,13 @@ export class MessageController {
 
             const chatId = parseInt(req.params.id)
 
-            const messages = await this.messageService.getChatMessages(userId, chatId)
+            let messages: Message[]
+
+            if (chatId < 0) {
+                messages = await this.messageService.getChannelMessages(chatId)
+            } else {
+                messages = await this.messageService.getChatMessages(userId, chatId)
+            }
 
             res.json(messages)
         } catch (error) {

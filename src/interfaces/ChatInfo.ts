@@ -1,4 +1,4 @@
-import { ChatType } from "./ChatType"
+import { ChatType } from "../enums/ChatType"
 import { Message } from "./Message"
 
 export type ChatInfo = {

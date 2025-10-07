@@ -23,14 +23,15 @@ model User {
     GroupMember       GroupMember[]
     ChannelSubscriber ChannelSubscriber[]
     PrivacySettings   PrivacySettings[]
+    ChannelBlackList  ChannelBlackList[]
 }
 
 model Session {
     id         Int      @id @default(autoincrement())
     userId     Int
     token      String   @unique
-    fcmToken   String?  @default("")
-    deviceName String?  @default("")
+    fcmToken   String?
+    deviceName String   @default("")
     createdAt  DateTime @default(now())
     user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -62,7 +63,7 @@ model Chat {
 model ChatFolder {
     id              Int               @id @default(autoincrement())
     userId          Int
-    folderName      String
+    name            String
     user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
     ChatFolderChats ChatFolderChats[]
 }
@@ -82,12 +83,25 @@ model Channel {
     id                Int                 @id @default(autoincrement())
     name              String
     bio               String
-    userId            Int
-    user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    ownerId           Int
+    channelType       Int                 @default(1)
+    publicLink        String?             @unique
+    user              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
     ChannelSubscriber ChannelSubscriber[]
+    ChannelBlackList  ChannelBlackList[]
 }
 
 model ChannelSubscriber {
+    id        Int     @id @default(autoincrement())
+    userId    Int
+    channelId Int
+    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, channelId])
+}
+
+model ChannelBlackList {
     id        Int     @id @default(autoincrement())
     userId    Int
     channelId Int

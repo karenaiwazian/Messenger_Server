@@ -3,22 +3,22 @@ import { ChatFolder } from "../interfaces/ChatFolder.js"
 import { prisma } from "../Prisma.js"
 import { UserService } from "./UserService.js"
 import { ChatService } from "./ChatService.js"
-import { ChatType } from "../interfaces/ChatType.js"
+import { ChatType } from "../enums/ChatType.js"
 
 export class FolderService {
 
     private userService = new UserService()
     private chatService = new ChatService()
 
-    saveFolder = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
+    save = async (chatFolder: ChatFolder): Promise<ChatFolder> => {
         const folder = await prisma.chatFolder.upsert({
             create: {
                 userId: chatFolder.userId,
-                folderName: chatFolder.folderName
+                name: chatFolder.name
             },
             update: {
                 userId: chatFolder.userId,
-                folderName: chatFolder.folderName
+                name: chatFolder.name
             },
             where: {
                 id: chatFolder.id
@@ -28,7 +28,7 @@ export class FolderService {
         return folder
     }
 
-    deleteFolder = async (folderId: number): Promise<void> => {
+    delete = async (folderId: number): Promise<void> => {
         await prisma.chatFolder.delete({
             where: {
                 id: folderId
@@ -57,12 +57,12 @@ export class FolderService {
             create: {
                 chatId: chatId,
                 folderId: folderId,
-                chatType: ChatType.User
+                chatType: ChatType.PRIVATE
             },
             update: {
                 chatId: chatId,
                 folderId: folderId,
-                chatType: ChatType.User
+                chatType: ChatType.PRIVATE
             },
             where: {
                 id: folderId

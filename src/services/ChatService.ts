@@ -1,7 +1,7 @@
 import { prisma } from "../Prisma.js"
 import { ChatInfo } from "../interfaces/ChatInfo.js"
 import { Message } from "../interfaces/Message.js"
-import { ChatType } from "../interfaces/ChatType.js"
+import { ChatType } from "../enums/ChatType.js"
 
 export class ChatService {
 
@@ -176,7 +176,28 @@ export class ChatService {
         return null
     }
 
-    async deleteChat(userId: number, chatId: number, deleteForReceiver: boolean): Promise<void> {
+    deleteChatWithMessages = async (userId: number, chatId: number, deleteForReceiver: boolean) => {
+        await this.deleteChat(userId, chatId)
+
+        if (deleteForReceiver) {
+            await this.deleteChat(chatId, userId)
+        }
+
+        await this.deleteChatMessages(userId, chatId, deleteForReceiver)
+    }
+
+    deleteChat = async (userId: number, chatId: number) => {
+        await prisma.chat.delete({
+            where: {
+                userId_chatId: {
+                    userId: userId,
+                    chatId: chatId
+                }
+            }
+        })
+    }
+
+    async deleteChatMessages(userId: number, chatId: number, deleteForReceiver: boolean): Promise<void> {
         if (deleteForReceiver) {
             await prisma.message.deleteMany({
                 where: {
@@ -234,7 +255,31 @@ export class ChatService {
             id: chatId,
             chatName: `${chat.firstName} ${chat.lastName}`,
             lastMessage: await this.getChatLastMessage(userId, chatId),
-            chatType: ChatType.User
+            chatType: ChatType.PRIVATE
+        } as ChatInfo
+
+        return chatInfo
+    }
+
+    getChannelInfo = async (userId: number, chatId: number): Promise<ChatInfo | null> => {
+        const channel = await prisma.channel.findFirst({
+            where: {
+                id: Math.abs(chatId)
+            },
+            select: {
+                name: true,
+            }
+        })
+
+        if (channel == null) {
+            return null
+        }
+
+        const chatInfo = {
+            id: chatId,
+            chatName: channel.name,
+            lastMessage: await this.getChatLastMessage(userId, chatId),
+            chatType: ChatType.CHANNEL
         } as ChatInfo
 
         return chatInfo
@@ -248,24 +293,33 @@ export class ChatService {
             },
             select: {
                 chatId: true,
-                isPinned: true
+                isPinned: true,
+                chatType: true
             }
         })
 
         const userChats = new Array<ChatInfo>
 
         for await (const chat of chats) {
-            const chatInfo = await this.getChatInfo(userId, chat.chatId)
+            let chatInfo: ChatInfo | null = null
+
+            if (chat.chatType == ChatType.PRIVATE) {
+                chatInfo = await this.getChatInfo(userId, chat.chatId)
+            } else if (chat.chatType == ChatType.CHANNEL) {
+                chatInfo = await this.getChannelInfo(userId, chat.chatId)
+            }
 
             if (chatInfo == null) {
                 continue
             }
 
+            chatInfo.chatType = chat.chatType
             chatInfo.isPinned = chat.isPinned
+
             userChats.push(chatInfo)
         }
 
-        const sortedBySendTime = userChats.sort((a, b) => Number(b.lastMessage?.sendTime) - Number(a.lastMessage?.sendTime))
+        const sortedBySendTime = userChats.sort((a, b) => Number(b.lastMessage?.sendTime || 0) - Number(a.lastMessage?.sendTime || 0))
 
         const sortedByPin = sortedBySendTime.sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
 

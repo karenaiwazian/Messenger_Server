@@ -3,7 +3,7 @@ import { APP_NAME, JWT_SECRET_KEY } from '../Constants.js'
 import { UserPublicInfo } from '../interfaces/User.js'
 import { Request, Response } from 'express'
 import { UserService } from "../services/UserService.js"
-import { SessionInfo } from '../interfaces/Session.js'
+import { SessionInfo } from '../interfaces/SessionInfo.js'
 import { SessionService } from '../services/SessionService.js'
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
@@ -12,11 +12,13 @@ import { PrivacyService } from '../services/PrivacyService.js'
 import { PrivacyLevel } from '../interfaces/PrivacyLevel.js'
 import { MessageService } from '../services/MessageService.js'
 import { ChatService } from '../services/ChatService.js'
-import { ChatType } from '../interfaces/ChatType.js'
+import { ChatType } from '../enums/ChatType.js'
 import { WebSocketController } from './WebSocketController.js'
 import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 import { Notification } from '../interfaces/Notification.js'
 import { NotificationService } from '../services/NotificationService.js'
+import { ChannelService } from '../services/ChannelService.js'
+import { SearchInfo } from '../interfaces/SearchInfo.js'
 
 export class UserController {
 
@@ -26,13 +28,14 @@ export class UserController {
     private privacyService = new PrivacyService()
     private messageService = new MessageService()
     private chatService = new ChatService()
+    private channelService = new ChannelService()
     private notificationService = new NotificationService()
 
     getUserById = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const id = parseInt(req.params.id)
 
-            const user = await this.userService.getUserById(id)
+            const user = await this.userService.getById(id)
 
             if (!user) {
                 return res.status(404).json(ApiReponse.Error("Пользователь не найден"))
@@ -59,7 +62,7 @@ export class UserController {
         try {
             const id = req.user.id
 
-            const user = await this.userService.getUserById(id)
+            const user = await this.userService.getById(id)
 
             if (user) {
                 res.json(user)
@@ -78,7 +81,27 @@ export class UserController {
 
             const users = await this.userService.searchUsers(search)
 
-            res.json(users)
+            const channels = await this.channelService.searchChannels(search)
+
+            const find = new Array<SearchInfo>
+
+            users?.forEach(user => {
+                find.push({
+                    chatId: user.id,
+                    name: user.firstName + " " + user.lastName,
+                    publicLink: user.username!!
+                })
+            })
+
+            channels?.forEach(channel => {
+                find.push({
+                    chatId: -channel.id,
+                    name: channel.name,
+                    publicLink: channel.publicLink!!
+                })
+            })
+
+            res.json(find)
         } catch (error) {
             console.error("Не удалось найти пользователя " + error)
             res.status(500).json(ApiReponse.Error("Не удалось найти пользователя"))
@@ -107,7 +130,7 @@ export class UserController {
             const login = req.params.login
             const validLogin = login.trim()
 
-            const user = await this.userService.getUserByLogin(validLogin)
+            const user = await this.userService.getByLogin(validLogin)
 
             if (!user) {
                 console.log('Пользователь не найден по логину')
@@ -130,14 +153,15 @@ export class UserController {
 
             const user: UserPublicInfo = {
                 id: userId,
-                firstName: data.firstName?.toString().trim(),
-                lastName: data.lastName?.toString().trim(),
-                username: data.username?.toString().trim(),
-                bio: data.bio?.toString().trim(),
+                firstName: data.firstName.trim(),
+                lastName: data.lastName.trim(),
+                username: data.username?.trim() || null,
+                bio: data.bio.trim(),
                 dateOfBirth: data.dateOfBirth
             }
 
-            await this.userService.updateUserProfile(userId, user)
+            await this.userService.updateProfile(userId, user)
+
             res.json(ApiReponse.Success())
         } catch (error) {
             console.error('Ошибка при обновлении профиля:', error)
@@ -168,7 +192,7 @@ export class UserController {
 
                 const sentMessage = await this.messageService.addMessage(0, userId, text)
 
-                await this.chatService.createChat(userId, systemChatId, ChatType.User)
+                await this.chatService.createChat(userId, systemChatId, ChatType.PRIVATE)
 
                 WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, sentMessage, userId)
 
@@ -240,7 +264,7 @@ export class UserController {
             const validPassword = password.trim()
             const validDeviceName = deviceName.trim()
 
-            const user = await this.userService.getUserByLogin(validLogin)
+            const user = await this.userService.getByLogin(validLogin)
 
             if (!user.password) {
                 res.status(400).json(ApiReponse.Error(""))
@@ -255,6 +279,7 @@ export class UserController {
                 const sessionInfo: SessionInfo = {
                     id: 0,
                     userId: user.id,
+                    fcmToken: null,
                     deviceName: validDeviceName,
                     token: token,
                     createdAt: new Date(),
@@ -298,7 +323,7 @@ export class UserController {
                 password: hash,
             }
 
-            const registeredUserId = await this.userService.registerUser(registerInfo)
+            const registeredUserId = await this.userService.register(registerInfo)
 
             await this.privacyService.initUserPrivacy(registeredUserId)
 

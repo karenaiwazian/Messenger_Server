@@ -1,8 +1,8 @@
 export class ApiReponse {
-    static Success(msg: string = ""): ApiResult {
+    static Success(msg: string | number = ""): ApiResult {
         return {
             status: true,
-            message: msg
+            message: msg.toString()
         }
     }
 

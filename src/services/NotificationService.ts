@@ -16,10 +16,9 @@ export class NotificationService {
                 sessions = await this.sessionService.getUserSessions(chatId)
             }
 
-            const tokens = sessions.map(session => session.fcmToken).filter(token => token !== undefined)
+            const tokens = sessions.map(session => session.fcmToken).filter(token => token !== null)
 
             if (tokens.length === 0) {
-                console.error('Нет токенов для отправки уведомлений')
                 return
             }
 

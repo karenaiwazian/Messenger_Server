@@ -2,7 +2,6 @@ import { Response } from 'express'
 import { ChatService } from "../services/ChatService.js"
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
-import { ChatInfo } from '../interfaces/ChatInfo.js'
 import { WebSocketAction } from '../interfaces/WebSocketAction.js'
 import { DeleteChatPayload } from '../interfaces/DeleteChatPayload.js'
 import { WebSocketController } from './WebSocketController.js'
@@ -18,17 +17,25 @@ export class ChatController {
             const userId = req.user.id
             const chatId = parseInt(req.params.id)
 
-            const chatInfo = await this.chatService.getChatInfo(userId, chatId)
+            let chatInfo = null
+
+            if (chatId < 0) {
+                chatInfo = await this.chatService.getChannelInfo(userId, chatId)
+            }
+            else {
+                chatInfo = await this.chatService.getChatInfo(userId, chatId)
+            }
 
             if (chatInfo == null) {
+                res.status(404).json(null)
                 console.error(`Чат ${chatId} не найден`)
-                return res.status(404).json(null)
+                return
             }
 
             res.status(200).json(chatInfo)
         } catch (error) {
+            res.status(400).json(null)
             console.error("Ошибка при получении информации о чате")
-            res.status(404).json(null)
         }
     }
 
@@ -38,9 +45,10 @@ export class ChatController {
 
             const chats = await this.chatService.getAllChats(userId)
 
-            res.json(chats)
+            res.status(200).json(chats)
         } catch {
-            res.json(ApiReponse.Error("Ошибка при получении всех чатов"))
+            res.status(400).json(ApiReponse.Error("Ошибка при получении всех чатов"))
+            console.error("Ошибка при получении всех чатов")
         }
     }
 
@@ -50,10 +58,10 @@ export class ChatController {
 
             const chats = await this.chatService.getUnarchivedChats(userId)
 
-            res.json(chats)
+            res.status(200).json(chats)
         } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при получении не архивных чатов"))
             console.error('Ошибка при получении не архивных чатов', error)
-            res.json(ApiReponse.Error("Ошибка при получении не архивных чатов"))
         }
     }
 
@@ -63,10 +71,10 @@ export class ChatController {
 
             const chats = await this.chatService.getArchivedChats(userId)
 
-            res.json(chats)
+            res.status(200).json(chats)
         } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при получении архивных чатов"))
             console.error('Ошибка при получении архивных чатов', error)
-            res.json(ApiReponse.Error("Ошибка при получении архивных чатов"))
         }
     }
 
@@ -78,9 +86,10 @@ export class ChatController {
 
             await this.chatService.addChatToArchive(userId, chatId)
 
-            res.json(ApiReponse.Success())
-        } catch {
-            res.json(ApiReponse.Error("Ошибка при добавлении чата в архив"))
+            res.status(200).json(ApiReponse.Success())
+        } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при добавлении чата в архив"))
+            console.error("Ошибка при добавлении чата в архив", error)
         }
     }
 
@@ -92,9 +101,10 @@ export class ChatController {
 
             await this.chatService.deleteChatFromArchive(userId, chatId)
 
-            res.json(ApiReponse.Success())
-        } catch {
-            res.json(ApiReponse.Error("Ошибка при удалении чата из архива"))
+            res.status(200).json(ApiReponse.Success())
+        } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при удалении чата из архива"))
+            console.error("Ошибка при удалении чата из архива", error)
         }
     }
 
@@ -112,8 +122,8 @@ export class ChatController {
 
             res.status(200).json({ success: true, message: 'Chat pinned successfully' })
         } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при закреплении чата"))
             console.error('Error while pinning chat:', error)
-            res.status(500).json(ApiReponse.Error("Ошибка при закреплении чата"))
         }
     }
 
@@ -132,8 +142,8 @@ export class ChatController {
             res.status(200).json({ success: true, message: 'Chat unpinned successfully' })
         }
         catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при откреплении чата"))
             console.error('Error while unpinning chat:', error)
-            res.status(500).json(ApiReponse.Error("Ошибка при откреплении чата"))
         }
     }
 
@@ -166,10 +176,10 @@ export class ChatController {
 
             await this.chatService.markAsRead(messageId)
 
-            const readMessagePayload = {
+            const readMessagePayload: ReadMessagePayload = {
                 chatId: userId,
                 messageId: messageId
-            } as ReadMessagePayload
+            }
 
             WebSocketController.sendMessage(WebSocketAction.READ_MESSAGE, readMessagePayload, chatId)
 
@@ -183,8 +193,11 @@ export class ChatController {
     deleteMessage = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
+
             const chatId = parseInt(req.params.chatId)
+
             const messageId = parseInt(req.params.messageId)
+
             const deleteForAllUsers = req.query.deleteForAllUsers?.toString().trim() === "true"
 
             const deletedMessage = await this.chatService.deleteMessage(userId, chatId, messageId, deleteForAllUsers)
@@ -210,13 +223,15 @@ export class ChatController {
         }
     }
 
-    deleteChat = async (req: AuthenticatedRequest, res: Response) => {
+    deleteChatMessages = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
+
             const chatId = parseInt(req.params.id)
+
             const deleteForReceiver = req.query.deleteForReceiver?.toString().trim() === "true"
 
-            await this.chatService.deleteChat(userId, chatId, deleteForReceiver)
+            await this.chatService.deleteChatMessages(userId, chatId, deleteForReceiver)
 
             if (deleteForReceiver) {
                 const payload: DeleteChatPayload = {
@@ -228,7 +243,36 @@ export class ChatController {
 
             res.status(200).json(ApiReponse.Success())
         } catch (error) {
-            res.json(ApiReponse.Error("Ошибка при удалении чата"))
+            res.status(400).json(ApiReponse.Error("Ошибка при удалении чата"))
+            console.error("Ошибка при удалении чата " + error)
+        }
+    }
+
+    deleteChat = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const userId = req.user.id
+
+            const chatId = parseInt(req.params.id)
+
+            const deleteForReceiver = req.query.deleteForReceiver?.toString().trim() === "true"
+
+            await this.chatService.deleteChat(userId, chatId)
+            await this.chatService.deleteChatMessages(userId, chatId, deleteForReceiver)
+
+            if (deleteForReceiver) {
+                await this.chatService.deleteChat(chatId, userId)
+                await this.chatService.deleteChatMessages(chatId, userId, deleteForReceiver)
+
+                const payload: DeleteChatPayload = {
+                    chatId: userId
+                }
+
+                WebSocketController.sendMessage(WebSocketAction.DELETE_CHAT, payload, chatId)
+            }
+
+            res.status(200).json(ApiReponse.Success())
+        } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при удалении чата"))
             console.error("Ошибка при удалении чата " + error)
         }
     }

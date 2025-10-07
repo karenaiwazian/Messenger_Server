@@ -48,6 +48,7 @@ export const createApiRouter = (): Router => {
     router.get('/archivedChat', wrap(chatController.getArchivedChats))
     router.get('/unarchivedChat', wrap(chatController.getUnarchivedChats))
     router.delete('/chat/:id', wrap(chatController.deleteChat))
+    router.delete('/chat/:id/messages', wrap(chatController.deleteChatMessages))
     router.post('/chat/:id/archive', wrap(chatController.addChatToArchive))
     router.delete('/chat/:id/archive', wrap(chatController.deleteChatFromArchive))
     router.post('/chat/:id/pin', wrap(chatController.pinChat))
@@ -66,19 +67,21 @@ export const createApiRouter = (): Router => {
     router.delete('/terminateAllSessions', wrap(sessionController.terminateAllSessions))
 
     // folder
-    router.post('/folder', wrap(folderController.saveFolder))
+    router.post('/folder', wrap(folderController.save))
     router.get('/folders', wrap(folderController.getFolders))
-    router.delete('/folder/:id', wrap(folderController.deleteFolder))
+    router.delete('/folder/:id', wrap(folderController.delete))
     router.get('/folder/:id/chats', wrap(folderController.getFolderChats))
     router.post('/folders/:folderId/chats/:chatId/pin', wrap(folderController.pinChat))
     router.delete('/folders/:folderId/chats/:chatId/pin', wrap(folderController.unpinChat))
 
     // channel
-    router.post('/channel', wrap(channelController.createChannel))
-    router.delete('/channel/:id', wrap(channelController.removeChannel))
-
-    // group
-    // router.post('/createGroup', authenticate, groupController.createGroupHandler)
+    router.post('/channel', wrap(channelController.save))
+    router.get('/channel/:id', wrap(channelController.getById))
+    router.get('/channel/q/:publicLink', wrap(channelController.checkChannelPublicLink))
+    router.delete('/channel/:id', wrap(channelController.remove))
+    router.post('/channel/:id/join', wrap(channelController.join))
+    router.delete('/channel/:id/leave', wrap(channelController.leave))
+    router.get('/channel/:id/subscribers', wrap(channelController.getSubscribers))
 
     return router
 }

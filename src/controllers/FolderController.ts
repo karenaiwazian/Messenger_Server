@@ -38,13 +38,13 @@ export class FolderController {
         }
     }
 
-    saveFolder = async (req: AuthenticatedRequest, res: Response) => {
+    save = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
             const folder = req.body as ChatFolder
             folder.userId = userId
 
-            const savedFolder = await this.folderService.saveFolder(folder)
+            const savedFolder = await this.folderService.save(folder)
             folder.id = savedFolder.id
 
             if (folder.chats) {
@@ -62,11 +62,11 @@ export class FolderController {
         }
     }
 
-    deleteFolder = async (req: AuthenticatedRequest, res: Response) => {
+    delete = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const folderId = parseInt(req.params.id)
 
-            await this.folderService.deleteFolder(folderId)
+            await this.folderService.delete(folderId)
 
             res.json(ApiReponse.Success())
         } catch (error) {
