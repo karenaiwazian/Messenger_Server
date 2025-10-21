@@ -4,16 +4,39 @@ import { AuthenticatedRequest } from "../interfaces/AuthenticatedRequest.js"
 import { ChannelInfo } from "../interfaces/ChannelInfo.js"
 import { ChannelService } from "../services/ChannelService.js"
 import { ChatService } from "../services/ChatService.js"
-import { ChatType } from "../enums/ChatType.js"
 import { UserService } from "../services/UserService.js"
 import { UserPublicInfo } from "../interfaces/User.js"
 import { ChannelType } from "../enums/ChannelType.js"
+import { IdGenerator } from "../utils/IdGenerator.js"
+import { EntityId } from "../types/EntityId.js"
 
 export class ChannelController {
 
     private channelService = new ChannelService()
     private chatService = new ChatService()
     private userService = new UserService()
+
+    create = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const userId = req.user.id
+            const channel: ChannelInfo = req.body
+
+            channel.ownerId = userId
+            channel.publicLink = null
+            channel.channelType = ChannelType.PRIVATE
+            channel.id = IdGenerator.generateChannelId()
+
+            await this.channelService.create(channel)
+
+            await this.chatService.createChat(userId, channel.id)
+            await this.channelService.join(userId, channel.id)
+
+            res.status(200).json(ApiReponse.Success(channel.id))
+        } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при создании канала"))
+            console.error("Ошибка при создании канала", error)
+        }
+    }
 
     save = async (req: AuthenticatedRequest, res: Response) => {
         try {
@@ -36,11 +59,9 @@ export class ChannelController {
                 channel.publicLink = null
             }
 
-            const channelId = await this.channelService.save(channel)
+            await this.channelService.save(channel)
 
-            await this.chatService.createChat(userId, -channelId, ChatType.CHANNEL)
-
-            res.status(200).json(ApiReponse.Success(channelId))
+            res.status(200).json(ApiReponse.Success(channel.id))
         } catch (error) {
             res.status(400).json(ApiReponse.Error("Ошибка при сохранении канала"))
             console.error("Ошибка при сохранении канала", error)
@@ -68,7 +89,7 @@ export class ChannelController {
     getById = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
-            const channelId = Math.abs(parseInt(req.params.id))
+            const channelId = EntityId(req.params.id)
 
             const channel = await this.channelService.getById(channelId)
 
@@ -89,7 +110,7 @@ export class ChannelController {
 
     getSubscribers = async (req: AuthenticatedRequest, res: Response) => {
         try {
-            const channelId = Math.abs(parseInt(req.params.id))
+            const channelId = EntityId(req.params.id)
 
             const subscribersId = await this.channelService.getSubscribers(channelId)
 
@@ -113,10 +134,10 @@ export class ChannelController {
     join = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
-            const channelId = Math.abs(parseInt(req.params.id))
+            const channelId = EntityId(req.params.id)
 
             await this.channelService.join(userId, channelId)
-            await this.chatService.createChat(userId, -channelId, ChatType.CHANNEL)
+            await this.chatService.createChat(userId, channelId)
 
             res.status(200).json(ApiReponse.Success())
         } catch (error) {
@@ -128,10 +149,10 @@ export class ChannelController {
     leave = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
-            const channelId = Math.abs(parseInt(req.params.id))
+            const channelId = EntityId(req.params.id)
 
             await this.channelService.leave(userId, channelId)
-            await this.chatService.deleteChat(userId, -channelId)
+            await this.chatService.deleteChat(userId, channelId)
 
             res.status(200).json(ApiReponse.Success())
         } catch (error) {
@@ -140,11 +161,12 @@ export class ChannelController {
         }
     }
 
-    remove = async (req: AuthenticatedRequest, res: Response) => {
+    delete = async (req: AuthenticatedRequest, res: Response) => {
         try {
-            const channelId = Math.abs(parseInt(req.params.id))
+            const userId = req.user.id
+            const channelId = EntityId(req.params.id)
 
-            await this.channelService.remove(channelId)
+            await this.channelService.delete(userId, channelId)
 
             res.status(200).json(ApiReponse.Success())
         } catch (error) {

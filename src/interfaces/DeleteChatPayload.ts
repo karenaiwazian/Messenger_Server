@@ -1,3 +1,5 @@
+import { EntityId } from "../types/EntityId"
+
 export type DeleteChatPayload = {
-    chatId: number
+    chatId: EntityId
 }

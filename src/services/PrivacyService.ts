@@ -1,10 +1,11 @@
 import { prisma } from "../Prisma.js"
 import { PrivacyLevel } from "../interfaces/PrivacyLevel.js"
 import { PrivacySettings } from "../interfaces/PrivacySettings.js"
+import { EntityId } from "../types/EntityId.js"
 
 export class PrivacyService {
 
-    initUserPrivacy = async (userId: number) => {
+    initUserPrivacy = async (userId: EntityId) => {
         const defaultValue = PrivacyLevel.Everybody
 
         await prisma.privacySettings.create({
@@ -19,7 +20,7 @@ export class PrivacyService {
         })
     }
 
-    getUserPrivacy = async (userId: number): Promise<PrivacySettings | null> => {
+    getUserPrivacy = async (userId: EntityId): Promise<PrivacySettings | null> => {
         const userPrivacy = await prisma.privacySettings.findFirst({
             where: {
                 userId: userId
@@ -33,7 +34,7 @@ export class PrivacyService {
         return userPrivacy as PrivacySettings
     }
 
-    setBio = async (userId: number, level: PrivacyLevel) => {
+    setBio = async (userId: EntityId, level: PrivacyLevel) => {
         await prisma.privacySettings.update({
             where: {
                 userId: userId
@@ -44,7 +45,7 @@ export class PrivacyService {
         })
     }
 
-    setDateOfBirth = async (userId: number, level: PrivacyLevel) => {
+    setDateOfBirth = async (userId: EntityId, level: PrivacyLevel) => {
         await prisma.privacySettings.update({
             where: {
                 userId: userId

@@ -9,14 +9,18 @@ import { UserService } from '../services/UserService.js'
 import { APP_NAME } from '../Constants.js'
 import { WebSocketController } from './WebSocketController.js'
 import { ChatService } from '../services/ChatService.js'
-import { WebSocketAction } from '../interfaces/WebSocketAction.js'
+import { WebSocketAction } from '../enums/WebSocketAction.js'
 import { ChatType } from '../enums/ChatType.js'
 import { ChannelService } from '../services/ChannelService.js'
+import { IdGenerator } from '../utils/IdGenerator.js'
+import { EntityId } from '../types/EntityId.js'
+import { GroupService } from '../services/GroupService.js'
 
 export class MessageController {
 
     private userService = new UserService()
     private chatService = new ChatService()
+    private groupService = new GroupService()
     private channelService = new ChannelService()
     private messageService = new MessageService()
     private notificationService = new NotificationService()
@@ -25,9 +29,10 @@ export class MessageController {
         try {
             const token = req.user.token
             const userId = req.user.id
-            const message = req.body as Message
+            const message: Message = req.body
             const chatId = message.chatId
             const messageText = message.text
+            const chatType = IdGenerator.detectType(chatId)
 
             const MAX_MESSAGE_LENGTH = 4096
             const messageParts = []
@@ -42,34 +47,57 @@ export class MessageController {
 
                 const sentMessage = await this.messageService.addMessage(userId, chatId, partText)
 
-                if (chatId > 0) {
-                    try {
-                        await this.chatService.createChat(userId, chatId, ChatType.PRIVATE)
+                switch (chatType) {
+                    case ChatType.PRIVATE:
+                        try {
+                            await this.chatService.createChat(userId, chatId)
 
-                        if (userId != chatId) {
-                            await this.chatService.createChat(chatId, userId, ChatType.PRIVATE)
+                            if (userId != chatId) {
+                                await this.chatService.createChat(chatId, userId)
+                            }
+                        } catch (error) {
+                            console.error("Ошибка при добавлении чата", error)
                         }
-                    } catch (error) {
-                        console.error("Ошибка при добавлении чата", error)
-                    }
-                } else {
-                    const subscribers = await this.channelService.getSubscribers(Math.abs(chatId))
+                        break
 
-                    subscribers.forEach(subscriber => {
-                        const channelMessage = sentMessage
-                        channelMessage.senderId = sentMessage.chatId
+                    case ChatType.CHANNEL:
+                        const subscriberIds = await this.channelService.getSubscribers(chatId)
 
-                        WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, sentMessage, subscriber)
-                    })
+                        for (const subscriberId of subscriberIds) {
+                            if (sentMessage.senderId == subscriberId) {
+                                continue
+                            }
 
-                    const senderName = await this.userService.getChatNameById(message.senderId)
+                            const channelMessage = { ...sentMessage }
+                            channelMessage.senderId = sentMessage.chatId
 
-                    const notification: Notification = {
-                        title: senderName || APP_NAME,
-                        body: partText
-                    }
+                            WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, channelMessage, subscriberId)
+                        }
 
-                    await this.notificationService.sendPushNotification(userId, token, chatId, notification)
+                        const senderName = await this.userService.getChatNameById(message.senderId)
+
+                        const notification: Notification = {
+                            title: senderName || APP_NAME,
+                            body: partText
+                        }
+
+                        await this.notificationService.sendPushNotification(userId, token, chatId, notification)
+                        break
+
+                    case ChatType.GROUP:
+                        const groupMembersid = await this.groupService.getMembers(chatId)
+
+                        for (const memberId of groupMembersid) {
+                            if (sentMessage.senderId == memberId) {
+                                continue
+                            }
+
+                            const groupMessage = { ...sentMessage }
+                            groupMessage.senderId = sentMessage.chatId
+
+                            WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, groupMessage, memberId)
+                        }
+                        break
                 }
 
                 if (chatId != userId) {
@@ -89,7 +117,7 @@ export class MessageController {
             }
         } catch (error) {
             res.status(400).json(ApiReponse.Error("Ошибка при отправке сообщения"))
-            console.error("Ошибка при отправке сообщения " + error)
+            console.error("Ошибка при отправке сообщения", error)
         }
     }
 
@@ -97,20 +125,28 @@ export class MessageController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
-            let messages: Message[]
+            let messages: Message[] = []
 
-            if (chatId < 0) {
-                messages = await this.messageService.getChannelMessages(chatId)
-            } else {
-                messages = await this.messageService.getChatMessages(userId, chatId)
+            switch (IdGenerator.detectType(chatId)) {
+                case ChatType.PRIVATE:
+                    messages = await this.messageService.getChatMessages(userId, chatId)
+                    break
+                case ChatType.CHANNEL:
+                    messages = await this.messageService.getChannelMessages(chatId)
+                    break
+                case ChatType.GROUP:
+                    messages = await this.messageService.getGroupMessages(chatId)
+                    break
+                default:
+                    break
             }
 
             res.json(messages)
         } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка сервера"))
             console.error('Ошибка при получении сообщений:', error)
-            res.json(ApiReponse.Error("Ошибка сервера"))
         }
     }
 
@@ -118,14 +154,14 @@ export class MessageController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             await this.messageService.deleteAllMessagesInChat(userId, chatId)
 
-            res.status(200).json({ success: true })
+            res.status(200).json(ApiReponse.Success())
         } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при удалении сообщений"))
             console.error('Ошибка при удалении сообщений:', error)
-            res.status(500).json({ error: 'Ошибка сервера' })
         }
     }
 }

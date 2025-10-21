@@ -14,11 +14,13 @@ import { MessageService } from '../services/MessageService.js'
 import { ChatService } from '../services/ChatService.js'
 import { ChatType } from '../enums/ChatType.js'
 import { WebSocketController } from './WebSocketController.js'
-import { WebSocketAction } from '../interfaces/WebSocketAction.js'
+import { WebSocketAction } from '../enums/WebSocketAction.js'
 import { Notification } from '../interfaces/Notification.js'
 import { NotificationService } from '../services/NotificationService.js'
 import { ChannelService } from '../services/ChannelService.js'
 import { SearchInfo } from '../interfaces/SearchInfo.js'
+import { IdGenerator } from '../utils/IdGenerator.js'
+import { EntityId } from '../types/EntityId.js'
 
 export class UserController {
 
@@ -33,7 +35,7 @@ export class UserController {
 
     getUserById = async (req: AuthenticatedRequest, res: Response) => {
         try {
-            const id = parseInt(req.params.id)
+            const id = EntityId(req.params.id)
 
             const user = await this.userService.getById(id)
 
@@ -83,7 +85,7 @@ export class UserController {
 
             const channels = await this.channelService.searchChannels(search)
 
-            const find = new Array<SearchInfo>
+            const find: SearchInfo[] = []
 
             users?.forEach(user => {
                 find.push({
@@ -149,7 +151,7 @@ export class UserController {
         try {
             const userId = req.user.id
 
-            const data = req.body as UserPublicInfo
+            const data: UserPublicInfo = req.body
 
             const user: UserPublicInfo = {
                 id: userId,
@@ -184,15 +186,15 @@ export class UserController {
             const passwordHash = await this.cryptoService.hashPassword(validPassword)
 
             try {
-                const systemChatId = 0
+                const systemChatId = EntityId(0)
 
                 const token = req.user.token
 
                 const text = "Облачный пароль был изменен"
 
-                const sentMessage = await this.messageService.addMessage(0, userId, text)
+                const sentMessage = await this.messageService.addMessage(systemChatId, userId, text)
 
-                await this.chatService.createChat(userId, systemChatId, ChatType.PRIVATE)
+                await this.chatService.createChat(userId, systemChatId)
 
                 WebSocketController.sendMessage(WebSocketAction.NEW_MESSAGE, sentMessage, userId)
 
@@ -274,7 +276,7 @@ export class UserController {
             const isCompare = await this.cryptoService.comparePassword(validPassword, user.password)
 
             if (isCompare) {
-                const token = jwt.sign({ id: user.id }, JWT_SECRET_KEY)
+                const token = jwt.sign({ id: user.id.toString() }, JWT_SECRET_KEY)
 
                 const sessionInfo: SessionInfo = {
                     id: 0,
@@ -293,8 +295,8 @@ export class UserController {
                 res.status(401).json(ApiReponse.Error("Неверный логин или пароль"))
             }
         } catch (e) {
-            console.error("Ошибка при авторизации", e)
             res.status(400).json(ApiReponse.Error("Ошибка при авторизации"))
+            console.error("Ошибка при авторизации", e)
         }
     }
 
@@ -318,17 +320,19 @@ export class UserController {
 
             const hash = await this.cryptoService.hashPassword(validPassword)
 
+            const userId = IdGenerator.generateUserId()
+
             const registerInfo = {
+                id: userId,
                 login: validLogin,
                 password: hash,
             }
 
-            const registeredUserId = await this.userService.register(registerInfo)
+            await this.userService.register(registerInfo)
 
-            await this.privacyService.initUserPrivacy(registeredUserId)
+            await this.privacyService.initUserPrivacy(userId)
 
             res.status(200).json(ApiReponse.Success())
-            console.log('Пользователь зарегистрирован')
         } catch (e) {
             console.error("Ошибка при регистрации", e)
             res.status(400).json(ApiReponse.Error("Ошибка при регистрации"))

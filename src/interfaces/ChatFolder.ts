@@ -1,8 +1,9 @@
+import { EntityId } from "../types/EntityId"
 import { ChatInfo } from "./ChatInfo"
 
 export type ChatFolder = {
     id: number
     name: string
-    userId: number
+    userId: EntityId
     chats?: ChatInfo[]
 }

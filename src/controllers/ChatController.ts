@@ -2,11 +2,14 @@ import { Response } from 'express'
 import { ChatService } from "../services/ChatService.js"
 import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
-import { WebSocketAction } from '../interfaces/WebSocketAction.js'
+import { WebSocketAction } from '../enums/WebSocketAction.js'
 import { DeleteChatPayload } from '../interfaces/DeleteChatPayload.js'
 import { WebSocketController } from './WebSocketController.js'
 import { DeleteMessagePayload } from '../interfaces/DeleteMessagePayload.js'
 import { ReadMessagePayload } from '../interfaces/ReadMessagePayload.js'
+import { IdGenerator } from '../utils/IdGenerator.js'
+import { ChatType } from '../enums/ChatType.js'
+import { EntityId } from '../types/EntityId.js'
 
 export class ChatController {
 
@@ -15,15 +18,24 @@ export class ChatController {
     getChatInfo = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             let chatInfo = null
 
-            if (chatId < 0) {
-                chatInfo = await this.chatService.getChannelInfo(userId, chatId)
-            }
-            else {
-                chatInfo = await this.chatService.getChatInfo(userId, chatId)
+            const chatType = IdGenerator.detectType(chatId)
+
+            switch (chatType) {
+                case ChatType.CHANNEL:
+                    chatInfo = await this.chatService.getChannelInfo(userId, chatId)
+                    break
+                case ChatType.PRIVATE:
+                    chatInfo = await this.chatService.getChatInfo(userId, chatId)
+                    break
+                case ChatType.GROUP:
+                    chatInfo = await this.chatService.getGroupInfo(userId, chatId)
+                    break
+                default:
+                    break
             }
 
             if (chatInfo == null) {
@@ -49,6 +61,19 @@ export class ChatController {
         } catch {
             res.status(400).json(ApiReponse.Error("Ошибка при получении всех чатов"))
             console.error("Ошибка при получении всех чатов")
+        }
+    }
+
+    getAllChatsWithOtherUser = async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const userId = req.user.id
+
+            const chats = await this.chatService.getAllChatsWithOtherUser(userId)
+
+            res.status(200).json(chats)
+        } catch (error) {
+            res.status(400).json(ApiReponse.Error("Ошибка при получении чатов с другими пользователями"))
+            console.error("Ошибка при получении чатов с другими пользователями", error)
         }
     }
 
@@ -82,7 +107,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             await this.chatService.addChatToArchive(userId, chatId)
 
@@ -97,7 +122,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             await this.chatService.deleteChatFromArchive(userId, chatId)
 
@@ -112,7 +137,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             if (!chatId) {
                 return res.status(400).json({ error: 'Chat ID is required' })
@@ -131,7 +156,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             if (!chatId) {
                 return res.status(400).json({ error: 'Chat ID is required' })
@@ -151,7 +176,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.chatId)
+            const chatId = EntityId(req.params.chatId)
 
             const lastMessage = await this.chatService.getChatLastMessage(userId, chatId)
 
@@ -170,7 +195,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.chatId)
+            const chatId = EntityId(req.params.chatId)
 
             const messageId = parseInt(req.params.messageId)
 
@@ -194,7 +219,7 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.chatId)
+            const chatId = EntityId(req.params.chatId)
 
             const messageId = parseInt(req.params.messageId)
 
@@ -227,18 +252,18 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             const deleteForReceiver = req.query.deleteForReceiver?.toString().trim() === "true"
 
             await this.chatService.deleteChatMessages(userId, chatId, deleteForReceiver)
 
             if (deleteForReceiver) {
-                const payload: DeleteChatPayload = {
+                const deleteChatPayload: DeleteChatPayload = {
                     chatId: userId
                 }
 
-                WebSocketController.sendMessage(WebSocketAction.DELETE_CHAT, payload, chatId)
+                WebSocketController.sendMessage(WebSocketAction.DELETE_CHAT, deleteChatPayload, chatId)
             }
 
             res.status(200).json(ApiReponse.Success())
@@ -252,22 +277,22 @@ export class ChatController {
         try {
             const userId = req.user.id
 
-            const chatId = parseInt(req.params.id)
+            const chatId = EntityId(req.params.id)
 
             const deleteForReceiver = req.query.deleteForReceiver?.toString().trim() === "true"
 
             await this.chatService.deleteChat(userId, chatId)
             await this.chatService.deleteChatMessages(userId, chatId, deleteForReceiver)
 
-            if (deleteForReceiver) {
+            if (deleteForReceiver && chatId != userId) {
                 await this.chatService.deleteChat(chatId, userId)
                 await this.chatService.deleteChatMessages(chatId, userId, deleteForReceiver)
 
-                const payload: DeleteChatPayload = {
+                const deleteChatPayload: DeleteChatPayload = {
                     chatId: userId
                 }
 
-                WebSocketController.sendMessage(WebSocketAction.DELETE_CHAT, payload, chatId)
+                WebSocketController.sendMessage(WebSocketAction.DELETE_CHAT, deleteChatPayload, chatId)
             }
 
             res.status(200).json(ApiReponse.Success())

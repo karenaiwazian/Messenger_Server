@@ -1,5 +1,7 @@
+import { EntityId } from "../types/EntityId"
+
 export type SearchInfo = {
-    chatId: number,
+    chatId: EntityId,
     name: string,
     publicLink: string
 }

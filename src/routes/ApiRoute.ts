@@ -7,6 +7,7 @@ import { AuthenticatedRequest } from '../interfaces/AuthenticatedRequest.js'
 import { FolderController } from '../controllers/FolderController.js'
 import { ChannelController } from '../controllers/ChannelController.js'
 import { PrivacyController } from '../controllers/PrivacyController.js'
+import { GroupController } from '../controllers/GroupController.js'
 
 type AuthenticateHandler = (req: AuthenticatedRequest, res: Response) => void
 
@@ -24,6 +25,7 @@ export const createApiRouter = (): Router => {
     const folderController = new FolderController()
     const channelController = new ChannelController()
     const privacyController = new PrivacyController()
+    const groupController = new GroupController()
 
     const router = Router()
 
@@ -44,6 +46,7 @@ export const createApiRouter = (): Router => {
 
     // chat
     router.get('/chats', wrap(chatController.getAllChats))
+    router.get('/chats/users', wrap(chatController.getAllChatsWithOtherUser))
     router.get('/chat/:id', wrap(chatController.getChatInfo))
     router.get('/archivedChat', wrap(chatController.getArchivedChats))
     router.get('/unarchivedChat', wrap(chatController.getUnarchivedChats))
@@ -75,13 +78,23 @@ export const createApiRouter = (): Router => {
     router.delete('/folders/:folderId/chats/:chatId/pin', wrap(folderController.unpinChat))
 
     // channel
-    router.post('/channel', wrap(channelController.save))
+    router.post('/channel', wrap(channelController.create))
+    router.post('/channel/:id', wrap(channelController.save))
     router.get('/channel/:id', wrap(channelController.getById))
     router.get('/channel/q/:publicLink', wrap(channelController.checkChannelPublicLink))
-    router.delete('/channel/:id', wrap(channelController.remove))
+    router.delete('/channel/:id', wrap(channelController.delete))
     router.post('/channel/:id/join', wrap(channelController.join))
     router.delete('/channel/:id/leave', wrap(channelController.leave))
     router.get('/channel/:id/subscribers', wrap(channelController.getSubscribers))
+
+    // group
+    router.post('/group', wrap(groupController.create))
+    router.get('/group/:id', wrap(groupController.get))
+    router.delete('/group/:id', wrap(groupController.delete))
+    router.post('/group/:groupId/invite/:userId', wrap(groupController.invite))
+    router.delete('/group/:groupId/leave', wrap(groupController.leave))
+    router.delete('/group/:groupId/remove/:userId', wrap(groupController.removeUser))
+    router.get('/group/:id/members', wrap(groupController.getMembers))
 
     return router
 }

@@ -1,5 +1,6 @@
 import { SessionInfo } from '../interfaces/SessionInfo.js'
 import { prisma } from '../Prisma.js'
+import { EntityId } from '../types/EntityId.js'
 
 export class SessionService {
 
@@ -14,7 +15,7 @@ export class SessionService {
         })
     }
 
-    termitateAllSessions = async (userId: number, token: string): Promise<void> => {
+    termitateAllSessions = async (userId: EntityId, token: string): Promise<void> => {
         await prisma.session.deleteMany({
             where: {
                 userId: userId,
@@ -25,7 +26,7 @@ export class SessionService {
         })
     }
 
-    getSessionCount = async (userId: number): Promise<number> => {
+    getSessionCount = async (userId: EntityId): Promise<number> => {
         return await prisma.session.count({
             where: {
                 userId
@@ -33,7 +34,7 @@ export class SessionService {
         })
     }
 
-    getSession = async (sessionId: number, userId: number): Promise<SessionInfo | null> => {
+    getSession = async (sessionId: number, userId: EntityId): Promise<SessionInfo | null> => {
         return await prisma.session.findFirst({
             where: {
                 id: sessionId, userId: userId
@@ -41,7 +42,7 @@ export class SessionService {
         }) as SessionInfo
     }
 
-    getSessions = async (userId: number, token: string): Promise<Array<SessionInfo>> => {
+    getSessions = async (userId: EntityId, token: string): Promise<SessionInfo[]> => {
         return await prisma.session.findMany({
             where: {
                 userId: userId,
@@ -52,7 +53,7 @@ export class SessionService {
         }) as SessionInfo[]
     }
 
-    getUserSessions = async (userId: number): Promise<Array<SessionInfo>> => {
+    getUserSessions = async (userId: EntityId): Promise<SessionInfo[]> => {
         return await prisma.session.findMany({
             where: {
                 userId: userId
@@ -77,7 +78,7 @@ export class SessionService {
     }
 
     addSession = async (session: SessionInfo): Promise<SessionInfo> => {
-        const createdSession = await prisma.session.create({
+        const createdSession: SessionInfo = await prisma.session.create({
             data: {
                 userId: session.userId,
                 token: session.token,
@@ -86,10 +87,10 @@ export class SessionService {
             }
         })
 
-        return createdSession as SessionInfo
+        return createdSession
     }
 
-    hasSession = async (userId: number, token: string): Promise<boolean> => {
+    hasSession = async (userId: EntityId, token: string): Promise<boolean> => {
         return !!await prisma.session.findFirst({
             where: {
                 userId: userId,

@@ -1,4 +1,6 @@
+import { EntityId } from "../types/EntityId"
+
 export type ReadMessagePayload = {
-    chatId: number
+    chatId: EntityId
     messageId: number
 }

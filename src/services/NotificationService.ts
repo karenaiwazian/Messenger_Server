@@ -1,12 +1,13 @@
 import admin from 'firebase-admin'
 import { SessionService } from "./SessionService.js"
 import { Notification } from '../interfaces/Notification.js'
+import { EntityId } from '../types/EntityId.js'
 
 export class NotificationService {
 
     private sessionService = new SessionService()
 
-    sendPushNotification = async (userId: number, token: string, chatId: number, notification: Notification) => {
+    sendPushNotification = async (userId: EntityId, token: string, chatId: EntityId, notification: Notification) => {
         try {
             var sessions
 

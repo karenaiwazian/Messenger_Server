@@ -1,10 +1,9 @@
-import { ChatType } from "../enums/ChatType"
+import { EntityId } from "../types/EntityId"
 import { Message } from "./Message"
 
 export type ChatInfo = {
-    id: number
+    id: EntityId
     chatName: string
-    chatType: ChatType
     isPinned: boolean
     lastMessage?: Message | null
 }

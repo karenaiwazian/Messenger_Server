@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from 'express'
 import { SessionService } from '../services/SessionService.js'
 import { ApiReponse } from '../interfaces/ApiResponse.js'
 import { JWT_SECRET_KEY } from '../Constants.js'
+import { EntityId } from '../types/EntityId.js'
 
 export class Authenticate {
 
@@ -39,7 +40,7 @@ export class Authenticate {
 
     verify = async (token: string) => {
         const payload = jwt.verify(token, JWT_SECRET_KEY!) as JwtPayload
-        const userId: number = payload.id
+        const userId: EntityId = EntityId(payload.id)
         const isVerify = await this.sessionService.hasSession(userId, token)
 
         return {

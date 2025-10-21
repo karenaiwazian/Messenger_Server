@@ -1,8 +1,9 @@
 import { Request } from "express"
+import { EntityId } from "../types/EntityId.js"
 
 export interface AuthenticatedRequest extends Request {
     user: {
-        id: number
+        id: EntityId
         token: string
     }
 }

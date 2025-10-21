@@ -1,10 +1,11 @@
 import { ChannelType } from "../enums/ChannelType"
+import { EntityId } from "../types/EntityId"
 
 export type ChannelInfo = {
-    id: number
+    id: EntityId
     name: string
     bio: string
-    ownerId: number
+    ownerId: EntityId
     subscribers: number
     removedUser: number
     channelType: ChannelType

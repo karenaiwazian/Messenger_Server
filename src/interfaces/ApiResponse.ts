@@ -1,5 +1,7 @@
+import { EntityId } from "../types/EntityId"
+
 export class ApiReponse {
-    static Success(msg: string | number = ""): ApiResult {
+    static Success(msg: string | EntityId = ""): ApiResult {
         return {
             status: true,
             message: msg.toString()

@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-    id                Int                 @id @default(autoincrement())
+    id                Int                 @id
     firstName         String              @default("")
     lastName          String              @default("")
     bio               String              @default("")
@@ -24,6 +24,7 @@ model User {
     ChannelSubscriber ChannelSubscriber[]
     PrivacySettings   PrivacySettings[]
     ChannelBlackList  ChannelBlackList[]
+    Chat              Chat[]
 }
 
 model Session {
@@ -53,9 +54,9 @@ model Chat {
     id         Int     @id @default(autoincrement())
     userId     Int
     chatId     Int
-    chatType   Int
     isPinned   Boolean @default(false)
     isArchived Boolean @default(false)
+    user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, chatId])
 }
@@ -72,7 +73,6 @@ model ChatFolderChats {
     id         Int        @id @default(autoincrement())
     folderId   Int
     chatId     Int
-    chatType   Int
     isPinned   Boolean    @default(false)
     chatFolder ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
@@ -80,7 +80,7 @@ model ChatFolderChats {
 }
 
 model Channel {
-    id                Int                 @id @default(autoincrement())
+    id                Int                 @id
     name              String
     bio               String
     ownerId           Int
@@ -112,11 +112,11 @@ model ChannelBlackList {
 }
 
 model Group {
-    id          Int           @id @default(autoincrement())
+    id          Int           @id
+    ownerId     Int
     name        String
     bio         String
-    userId      Int
-    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
     GroupMember GroupMember[]
 }
 

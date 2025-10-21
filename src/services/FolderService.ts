@@ -4,6 +4,7 @@ import { prisma } from "../Prisma.js"
 import { UserService } from "./UserService.js"
 import { ChatService } from "./ChatService.js"
 import { ChatType } from "../enums/ChatType.js"
+import { EntityId } from "../types/EntityId.js"
 
 export class FolderService {
 
@@ -36,7 +37,7 @@ export class FolderService {
         })
     }
 
-    getFolders = async (userId: number): Promise<ChatFolder[]> => {
+    getFolders = async (userId: EntityId): Promise<ChatFolder[]> => {
         return await prisma.chatFolder.findMany({
             where: {
                 userId: userId
@@ -52,17 +53,15 @@ export class FolderService {
         }) as ChatFolder
     }
 
-    addChatToFolder = async (chatId: number, folderId: number) => {
+    addChatToFolder = async (chatId: EntityId, folderId: number) => {
         await prisma.chatFolderChats.upsert({
             create: {
                 chatId: chatId,
-                folderId: folderId,
-                chatType: ChatType.PRIVATE
+                folderId: folderId
             },
             update: {
                 chatId: chatId,
-                folderId: folderId,
-                chatType: ChatType.PRIVATE
+                folderId: folderId
             },
             where: {
                 id: folderId
@@ -70,7 +69,7 @@ export class FolderService {
         })
     }
 
-    getFolderChats = async (userId: number, folderId: number): Promise<ChatInfo[]> => {
+    getFolderChats = async (userId: EntityId, folderId: number): Promise<ChatInfo[]> => {
         const chats = await prisma.chatFolderChats.findMany({
             where: {
                 folderId
@@ -87,7 +86,7 @@ export class FolderService {
             }
         })
 
-        const result = await Promise.all(chatPromises) as ChatInfo[]
+        const result: ChatInfo[] = await Promise.all(chatPromises)
 
         for await (const chat of result) {
             chat.lastMessage = await this.chatService.getChatLastMessage(userId, chat.id)

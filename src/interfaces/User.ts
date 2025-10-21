@@ -1,5 +1,7 @@
+import { EntityId } from "../types/EntityId"
+
 export type UserFullInfo = {
-    id: number
+    id: EntityId
     firstName: string
     lastName: string
     username: string | null
@@ -10,7 +12,7 @@ export type UserFullInfo = {
 }
 
 export type UserPublicInfo = {
-    id: number
+    id: EntityId
     firstName: string
     lastName: string
     username: string | null

@@ -2,10 +2,13 @@ import { prisma } from "../Prisma.js"
 import { ChatInfo } from "../interfaces/ChatInfo.js"
 import { Message } from "../interfaces/Message.js"
 import { ChatType } from "../enums/ChatType.js"
+import { IdGenerator } from "../utils/IdGenerator.js"
+import { EntityId } from "../types/EntityId.js"
+import { GroupInfo } from "../interfaces/GroupInfo.js"
 
 export class ChatService {
 
-    getAllChats = async (userId: number): Promise<ChatInfo[]> => {
+    getAllChats = async (userId: EntityId): Promise<ChatInfo[]> => {
         const unarchiveChats = await this.getUnarchivedChats(userId)
         const archiveChatss = await this.getArchivedChats(userId)
 
@@ -14,19 +17,33 @@ export class ChatService {
         return allChats
     }
 
-    getUnarchivedChats = async (userId: number): Promise<Array<ChatInfo>> => {
+    getAllChatsWithOtherUser = async (userId: EntityId): Promise<ChatInfo[]> => {
+        const chats = await prisma.chat.findMany({
+            where: {
+                userId: userId
+            }
+        })
+
+        const filteredChats = chats.filter(chat => chat.chatId.toString().startsWith(IdGenerator.prefixes.user.toString()))
+
+        const chatsInfo = await this.getChatsInfo(userId, filteredChats)
+
+        return this.sortChats(chatsInfo)
+    }
+
+    getUnarchivedChats = async (userId: EntityId): Promise<ChatInfo[]> => {
         const unarchiveChats = await this.getChats(userId)
 
         return unarchiveChats
     }
 
-    getArchivedChats = async (userId: number): Promise<ChatInfo[]> => {
+    getArchivedChats = async (userId: EntityId): Promise<ChatInfo[]> => {
         const archiveChats = await this.getChats(userId, true)
 
         return archiveChats
     }
 
-    async createChat(userId: number, chatId: number, chatType: ChatType) {
+    async createChat(userId: EntityId, chatId: EntityId) {
         await prisma.chat.upsert({
             where: {
                 userId_chatId: {
@@ -34,34 +51,31 @@ export class ChatService {
                     chatId: chatId
                 }
             },
-            update: {
-                chatType: chatType
-            },
+            update: {},
             create: {
                 userId: userId,
-                chatId: chatId,
-                chatType: chatType
+                chatId: chatId
             }
         })
     }
 
-    addChatToArchive = async (userId: number, chatId: number): Promise<any> => {
+    addChatToArchive = async (userId: EntityId, chatId: EntityId): Promise<any> => {
         await this.toggleArchiveChat(userId, chatId, true)
     }
 
-    deleteChatFromArchive = async (userId: number, chatId: number): Promise<void> => {
+    deleteChatFromArchive = async (userId: EntityId, chatId: EntityId): Promise<void> => {
         await this.toggleArchiveChat(userId, chatId, false)
     }
 
-    pinChat = async (userId: number, chatId: number): Promise<void> => {
+    pinChat = async (userId: EntityId, chatId: EntityId): Promise<void> => {
         await this.togglePinChat(userId, chatId, true)
     }
 
-    unpinChat = async (userId: number, chatId: number): Promise<void> => {
+    unpinChat = async (userId: EntityId, chatId: EntityId): Promise<void> => {
         await this.togglePinChat(userId, chatId, false)
     }
 
-    async getChatLastMessage(senderId: number, chatId: number): Promise<Message | null> {
+    async getChatLastMessage(senderId: EntityId, chatId: EntityId): Promise<Message | null> {
         const lastMessage = await prisma.message.findFirst({
             where: {
                 OR: [
@@ -101,7 +115,7 @@ export class ChatService {
         })
     }
 
-    async deleteMessage(userId: number, chatId: number, messageId: number, deleteForAll: boolean): Promise<Message | null> {
+    async deleteMessage(userId: EntityId, chatId: EntityId, messageId: number, deleteForAll: boolean): Promise<Message | null> {
         const deletedMessage = await prisma.message.findFirst({
             where: {
                 id: messageId
@@ -112,10 +126,10 @@ export class ChatService {
             return null
         }
 
-        const message = {
+        const message: Message = {
             ...deletedMessage,
             sendTime: deletedMessage.sendTime.getTime()
-        } as Message
+        }
 
         if (deleteForAll) { // Удалить для всех участников чата
             await prisma.message.delete({
@@ -176,7 +190,7 @@ export class ChatService {
         return null
     }
 
-    deleteChatWithMessages = async (userId: number, chatId: number, deleteForReceiver: boolean) => {
+    deleteChatWithMessages = async (userId: EntityId, chatId: EntityId, deleteForReceiver: boolean) => {
         await this.deleteChat(userId, chatId)
 
         if (deleteForReceiver) {
@@ -186,7 +200,7 @@ export class ChatService {
         await this.deleteChatMessages(userId, chatId, deleteForReceiver)
     }
 
-    deleteChat = async (userId: number, chatId: number) => {
+    deleteChat = async (userId: EntityId, chatId: EntityId) => {
         await prisma.chat.delete({
             where: {
                 userId_chatId: {
@@ -197,7 +211,7 @@ export class ChatService {
         })
     }
 
-    async deleteChatMessages(userId: number, chatId: number, deleteForReceiver: boolean): Promise<void> {
+    async deleteChatMessages(userId: EntityId, chatId: EntityId, deleteForReceiver: boolean): Promise<void> {
         if (deleteForReceiver) {
             await prisma.message.deleteMany({
                 where: {
@@ -236,7 +250,7 @@ export class ChatService {
         }
     }
 
-    getChatInfo = async (userId: number, chatId: number): Promise<ChatInfo | null> => {
+    getChatInfo = async (userId: EntityId, chatId: EntityId): Promise<ChatInfo | null> => {
         const chat = await prisma.user.findFirst({
             where: {
                 id: chatId
@@ -251,20 +265,20 @@ export class ChatService {
             return null
         }
 
-        const chatInfo = {
+        const chatInfo: ChatInfo = {
             id: chatId,
             chatName: `${chat.firstName} ${chat.lastName}`,
-            lastMessage: await this.getChatLastMessage(userId, chatId),
-            chatType: ChatType.PRIVATE
-        } as ChatInfo
+            isPinned: false,
+            lastMessage: await this.getChatLastMessage(userId, chatId)
+        }
 
         return chatInfo
     }
 
-    getChannelInfo = async (userId: number, chatId: number): Promise<ChatInfo | null> => {
+    getChannelInfo = async (userId: EntityId, chatId: EntityId): Promise<ChatInfo | null> => {
         const channel = await prisma.channel.findFirst({
             where: {
-                id: Math.abs(chatId)
+                id: chatId
             },
             select: {
                 name: true,
@@ -275,17 +289,42 @@ export class ChatService {
             return null
         }
 
-        const chatInfo = {
+        const chatInfo: ChatInfo = {
             id: chatId,
             chatName: channel.name,
-            lastMessage: await this.getChatLastMessage(userId, chatId),
-            chatType: ChatType.CHANNEL
-        } as ChatInfo
+            isPinned: false,
+            lastMessage: await this.getChatLastMessage(userId, chatId)
+        }
 
         return chatInfo
     }
 
-    private getChats = async (userId: number, isArchived: boolean = false) => {
+    getGroupInfo = async (userId: EntityId, chatId: EntityId): Promise<ChatInfo | null> => {
+        const group = await prisma.group.findFirst({
+            where: {
+                id: chatId
+            },
+            select: {
+                name: true,
+
+            }
+        })
+
+        if (group == null) {
+            return null
+        }
+
+        const chatInfo: ChatInfo = {
+            id: chatId,
+            chatName: group.name,
+            isPinned: false,
+            lastMessage: await this.getChatLastMessage(userId, chatId)
+        }
+
+        return chatInfo
+    }
+
+    private getChats = async (userId: EntityId, isArchived: boolean = false) => {
         const chats = await prisma.chat.findMany({
             where: {
                 userId: userId,
@@ -293,40 +332,61 @@ export class ChatService {
             },
             select: {
                 chatId: true,
-                isPinned: true,
-                chatType: true
+                isPinned: true
             }
         })
 
-        const userChats = new Array<ChatInfo>
+        const userChats = await this.getChatsInfo(userId, chats)
+
+        return this.sortChats(userChats)
+    }
+
+    private async getChatsInfo(userId: EntityId, chats: {
+        chatId: number;
+        isPinned: boolean;
+    }[]): Promise<ChatInfo[]> {
+        const chatsInfo: ChatInfo[] = []
 
         for await (const chat of chats) {
             let chatInfo: ChatInfo | null = null
 
-            if (chat.chatType == ChatType.PRIVATE) {
-                chatInfo = await this.getChatInfo(userId, chat.chatId)
-            } else if (chat.chatType == ChatType.CHANNEL) {
-                chatInfo = await this.getChannelInfo(userId, chat.chatId)
+            const chatType = IdGenerator.detectType(chat.chatId)
+
+            switch (chatType) {
+                case ChatType.PRIVATE:
+                    chatInfo = await this.getChatInfo(userId, chat.chatId)
+                    break
+                case ChatType.CHANNEL:
+                    chatInfo = await this.getChannelInfo(userId, chat.chatId)
+                    break
+                case ChatType.GROUP:
+                    chatInfo = await this.getGroupInfo(userId, chat.chatId)
+                    break
+                default:
+                    break
             }
 
             if (chatInfo == null) {
                 continue
             }
 
-            chatInfo.chatType = chat.chatType
             chatInfo.isPinned = chat.isPinned
 
-            userChats.push(chatInfo)
+            chatsInfo.push(chatInfo)
         }
 
-        const sortedBySendTime = userChats.sort((a, b) => Number(b.lastMessage?.sendTime || 0) - Number(a.lastMessage?.sendTime || 0))
+        return chatsInfo
+    }
+
+    private sortChats(chats: ChatInfo[]): ChatInfo[] {
+        const sortedBySendTime = chats.sort((a, b) => Number(b.lastMessage?.sendTime || 0) - Number(a.lastMessage?.sendTime || 0))
 
         const sortedByPin = sortedBySendTime.sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
 
         return sortedByPin
     }
 
-    private async togglePinChat(userId: number, chatId: number, isPinned: boolean): Promise<void> {
+    private async togglePinChat(userId: EntityId, chatId: EntityId, isPinned: boolean): Promise<void> {
         await prisma.chat.updateMany({
             where: {
                 userId: userId,
@@ -338,7 +398,7 @@ export class ChatService {
         })
     }
 
-    private async toggleArchiveChat(userId: number, chatId: number, isArchived: boolean): Promise<void> {
+    private async toggleArchiveChat(userId: EntityId, chatId: EntityId, isArchived: boolean): Promise<void> {
         await prisma.chat.updateMany({
             where: {
                 userId: userId,

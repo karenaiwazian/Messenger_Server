@@ -1,9 +1,10 @@
 import { UserFullInfo, UserPublicInfo } from '../interfaces/User.js'
 import { prisma } from "../Prisma.js"
+import { EntityId } from '../types/EntityId.js'
 
 export class UserService {
 
-    getById = async (chatId: number): Promise<UserPublicInfo | null> => {
+    getById = async (chatId: EntityId): Promise<UserPublicInfo | null> => {
         const user = await prisma.user.findFirst({
             where: {
                 id: chatId
@@ -30,7 +31,7 @@ export class UserService {
         return findedUser
     }
 
-    getChatNameById = async (chatId: number): Promise<string | null> => {
+    getChatNameById = async (chatId: EntityId): Promise<string | null> => {
         const chat = await prisma.user.findFirst({
             where: {
                 id: chatId
@@ -86,7 +87,7 @@ export class UserService {
         return user == null
     }
 
-    async changeUsername(userId: number, username: string | null) {
+    async changeUsername(userId: EntityId, username: string | null) {
         await prisma.user.update({
             where: {
                 id: userId
@@ -97,7 +98,7 @@ export class UserService {
         })
     }
 
-    updateProfile = async (userId: number, user: UserPublicInfo): Promise<void> => {
+    updateProfile = async (userId: EntityId, user: UserPublicInfo): Promise<void> => {
         const dateOfBirth = user?.dateOfBirth ? new Date(user.dateOfBirth) : null
 
         await prisma.user.update({
@@ -114,7 +115,7 @@ export class UserService {
         })
     }
 
-    changeCloudPassword = async (userId: number, password: string): Promise<void> => {
+    changeCloudPassword = async (userId: EntityId, password: string): Promise<void> => {
         await prisma.user.update({
             where: {
                 id: userId
@@ -125,9 +126,10 @@ export class UserService {
         })
     }
 
-    register = async (user: { login: string, password: string }): Promise<number> => {
+    register = async (user: { id: EntityId, login: string, password: string }): Promise<EntityId> => {
         const registeredUser = await prisma.user.create({
             data: {
+                id: user.id,
                 login: user.login,
                 password: user.password
             }

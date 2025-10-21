@@ -5,16 +5,17 @@ import { RawData, WebSocket, WebSocketServer } from "ws"
 import { WEBSOCKET_PORT } from "../Constants.js"
 import { MyWebSocket } from "../interfaces/MyWebSocket.js"
 import { Authenticate } from "../middlewares/Authentificate.js"
-import { WebSocketActionPayload } from '../interfaces/WebSocketActionPayload.js'
+import { WebSocketActionPayload } from '../enums/WebSocketActionPayload.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { WebSocketAction } from '../interfaces/WebSocketAction.js'
+import { WebSocketAction } from '../enums/WebSocketAction.js'
+import { EntityId } from '../types/EntityId.js'
 
 export class WebSocketController {
 
     private authenticate = new Authenticate()
 
-    private static userConnections = new Map<number, Map<string, MyWebSocket>>()
+    private static userConnections = new Map<EntityId, Map<string, MyWebSocket>>()
 
     private webSocketServer = new WebSocketServer({ port: WEBSOCKET_PORT })
 
@@ -24,7 +25,7 @@ export class WebSocketController {
         const __dirname = path.dirname(__filename)
         const serviceAccountPath = path.resolve(__dirname, '../../config/serviceAccountKey.json')
 
-        const serviceAccount = requireJSON(serviceAccountPath);
+        const serviceAccount = requireJSON(serviceAccountPath)
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         })
@@ -35,7 +36,7 @@ export class WebSocketController {
     public static sendMessage = <T extends keyof WebSocketActionPayload>(
         action: T,
         data: WebSocketActionPayload[T],
-        userId: number
+        userId: EntityId
     ) => {
         const messageToSend = {
             action: WebSocketAction[action].toString(),
@@ -48,7 +49,7 @@ export class WebSocketController {
     }
 
     private handleConnection = async (webSocket: WebSocket, request: IncomingMessage) => {
-        const ws = webSocket as MyWebSocket
+        const ws: MyWebSocket = webSocket as MyWebSocket
 
         const requestUrl = request.url || ""
         const url = new URL(requestUrl, `http://${request.headers.host}`)
@@ -79,28 +80,16 @@ export class WebSocketController {
             WebSocketController.userConnections.get(ws.userId)!.set(ws.token, ws)
 
             console.log(`Пользователь ${isVerify.userId} подключился через WebSocket`)
-        } catch (err) {
+        } catch (error) {
             ws.close(1008, 'Ошибка проверки токена')
+            console.error("Ошибка проверки токена", error)
             return
         }
-
-        ws.on('message', (data) => this.handleMessage(ws, data))
 
         ws.on('close', () => this.handleConnectionClose(ws))
     }
 
-    private handleMessage = async (ws: MyWebSocket, data: RawData) => {
-        try {
-            const message = JSON.parse(data.toString())
-
-            console.log(message)
-        }
-        catch (e) {
-            console.log('Обработка сообщения вебсокета', e)
-        }
-    }
-
-    private static sendMessageToUser(userId: number, message: string) {
+    private static sendMessageToUser(userId: EntityId, message: string) {
         const userSessions = this.userConnections.get(userId)
 
         if (userSessions) {

@@ -41,7 +41,8 @@ export class FolderController {
     save = async (req: AuthenticatedRequest, res: Response) => {
         try {
             const userId = req.user.id
-            const folder = req.body as ChatFolder
+            const folder: ChatFolder = req.body
+
             folder.userId = userId
 
             const savedFolder = await this.folderService.save(folder)
